@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Movement & Recovery — Personal Program</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #0d1117;
+  --surface: #131920;
+  --surface2: #1a2330;
+  --border: rgba(255,255,255,0.07);
+  --border-lit: rgba(255,255,255,0.14);
+  --text: #d4cfc8;
+  --text-dim: #6b7a8a;
+  --text-dimmer: #3d4d5c;
+  --accent: #7eb8c9;
+  --accent-dim: rgba(126,184,201,0.12);
+  --accent-border: rgba(126,184,201,0.22);
+  --green: #7ab89a;
+  --green-dim: rgba(122,184,154,0.1);
+  --green-border: rgba(122,184,154,0.2);
+  --amber: #c8a96e;
+  --amber-dim: rgba(200,169,110,0.1);
+  --amber-border: rgba(200,169,110,0.22);
+  --warm: #c4a882;
+  --r: 10px;
+  --r-sm: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+.header {
+  padding: 44px 22px 32px;
+  max-width: 600px;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--border);
+}
+.header-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+.header h1 {
+  font-size: clamp(28px, 7vw, 42px);
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+.header h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+.header-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+  font-weight: 300;
+  line-height: 1.65;
+  max-width: 420px;
+}
+.header-meta {
+  display: flex;
+  gap: 24px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+.header-stat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dimmer);
+}
+.header-stat span {
+  color: var(--accent);
+  display: block;
+  font-size: 14px;
+  margin-bottom: 1px;
+}
+
+/* ── TONIGHT MODE BANNER ── */
+.tonight-banner {
+  background: linear-gradient(135deg, rgba(126,184,201,0.06) 0%, rgba(126,184,201,0.02) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  max-width: 600px;
+  margin: 0 auto;
+  transition: background 0.2s;
+}
+.tonight-banner:hover { background: rgba(126,184,201,0.08); }
+.tonight-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.tonight-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+.tonight-text strong {
+  color: var(--accent);
+  font-weight: 400;
+}
+.tonight-arrow {
+  margin-left: auto;
+  color: var(--text-dimmer);
+  font-size: 14px;
+}
+
+/* ── TONIGHT MODE PANEL ── */
+.tonight-panel {
+  display: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 22px 24px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.tonight-panel.open { display: block; }
+.tonight-panel p {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.tonight-panel p strong { color: var(--text); font-weight: 400; }
+.mini-list {
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.mini-list li {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mini-list li:last-child { border-bottom: none; }
+.mini-list li span { color: var(--accent); }
+
+/* ── TABS ── */
+.tabs-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  max-width: 600px;
+  margin: 0 auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0;
+  padding: 13px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+  margin-bottom: -1px;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover:not(.active) { color: var(--text-dim); }
+
+/* ── PANELS ── */
+.panel { display: none; max-width: 600px; margin: 0 auto; padding: 24px 18px 80px; }
+.panel.active { display: block; }
+
+/* ── PHASE HEADERS ── */
+.phase-header {
+  margin: 32px 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.phase-header:first-of-type { margin-top: 4px; }
+.phase-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 4px;
+}
+.phase-title {
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.phase-title em { font-style: italic; color: var(--accent); }
+.phase-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dimmer);
+  margin-top: 3px;
+}
+
+/* ── EXERCISE CARDS ── */
+.ex-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 9px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+  background: var(--surface);
+}
+.ex-card.done { border-color: var(--green-border); }
+.ex-card-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 15px;
+  cursor: pointer;
+  user-select: none;
+}
+.ex-tick {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--text-dimmer);
+  background: none;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: transparent;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.ex-card.done .ex-tick {
+  border-color: var(--green);
+  background: rgba(122,184,154,0.15);
+  color: var(--green);
+}
+.ex-name-group { flex: 1; min-width: 0; }
+.ex-name {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.3;
+}
+.ex-sets {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  margin-top: 2px;
+  letter-spacing: 0.06em;
+}
+.ex-chevron {
+  color: var(--text-dimmer);
+  font-size: 11px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.ex-card.open .ex-chevron { transform: rotate(180deg); }
+
+.ex-body {
+  display: none;
+  padding: 0 15px 16px;
+  border-top: 1px solid var(--border);
+}
+.ex-card.open .ex-body { display: block; }
+
+/* exercise body content */
+.ex-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 13px;
+  margin-bottom: 14px;
+}
+.tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.tag-hockey { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+.tag-golf { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.tag-knee { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+
+.cue-section { margin-bottom: 14px; }
+.cue-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 5px;
+  display: block;
+}
+.cue-label.green { color: var(--green); opacity: 0.8; }
+.cue-label.amber { color: var(--amber); opacity: 0.8; }
+.cue-text {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  font-weight: 300;
+}
+.cue-text strong { color: var(--text); font-weight: 400; }
+
+.feel-box {
+  background: var(--surface2);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 11px 14px;
+  margin: 12px 0;
+  font-size: 14px;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.6;
+}
+.feel-box.green { border-left-color: var(--green); }
+.feel-box.amber { border-left-color: var(--amber); }
+
+.knee-note {
+  background: var(--amber-dim);
+  border: 1px solid var(--amber-border);
+  border-radius: var(--r-sm);
+  padding: 10px 13px;
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--amber);
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+}
+
+/* ── SESSION COMPLETE ── */
+.session-done {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--green-border);
+  border-radius: var(--r);
+  padding: 20px 18px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.session-done h3 {
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--green);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+.session-done p {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.reset-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.reset-link:hover { color: var(--text); border-color: var(--border-lit); }
+
+/* ── PROGRESS PANEL ── */
+.prog-intro {
+  font-size: 15px;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.week-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.week-row label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  flex-shrink: 0;
+}
+.week-row select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 11px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  flex: 1;
+  outline: none;
+  transition: border-color 0.18s;
+}
+.week-row select:focus { border-color: var(--accent); }
+.week-row select option { background: var(--bg); }
+
+.conf-row {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.conf-row-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.conf-val-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+}
+.pips {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+.pip {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pip.on { background: var(--accent); }
+.conf-desc {
+  font-size: 13px;
+  color: var(--text-dimmer);
+  font-style: italic;
+  min-height: 18px;
+}
+
+.metric-grid {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 15px;
+}
+.metric-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.metric-card-name {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text);
+}
+.metric-card-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+}
+.inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.inputs-row.solo { grid-template-columns: 1fr; }
+.input-group label {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 4px;
+}
+.input-group input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.18s;
+  -webkit-appearance: none;
+}
+.input-group input:focus { border-color: var(--accent); }
+
+.save-btn {
+  width: 100%;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r);
+  padding: 13px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: all 0.18s;
+}
+.save-btn:hover { background: rgba(126,184,201,0.18); }
+
+.export-btn {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 11px;
+  color: var(--text-dimmer);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.18s;
+}
+.export-btn:hover { color: var(--text); border-color: var(--border-lit); }
+
+.history-wrap {
+  margin-top: 26px;
+  display: none;
+}
+.history-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.history-scroll { overflow-x: auto; }
+.htable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.htable th {
+  text-align: left;
+  padding: 5px 8px;
+  color: var(--text-dimmer);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.htable td {
+  padding: 8px 8px;
+  color: var(--text-dim);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  white-space: nowrap;
+}
+.htable tr:last-child td { border-bottom: none; }
+.good { color: var(--green); }
+.warn { color: var(--amber); }
+
+/* ── MILESTONES ── */
+.ms-phase-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin: 24px 0 10px;
+}
+.ms-phase-label:first-of-type { margin-top: 4px; }
+.ms-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: border-color 0.18s;
+  user-select: none;
+}
+.ms-item.hit { border-color: var(--green-border); }
+.ms-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--text-dimmer);
+  flex-shrink: 0;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: transparent;
+  transition: all 0.18s;
+}
+.ms-item.hit .ms-dot {
+  border-color: var(--green);
+  background: rgba(122,184,154,0.15);
+  color: var(--green);
+}
+.ms-body { flex: 1; }
+.ms-body strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.ms-body span {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.ms-week {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+.ms-counter {
+  text-align: center;
+  margin: 20px 0 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.1em;
+}
+.ms-counter span { color: var(--accent); }
+
+/* ── GOLF TAB ── */
+.golf-section { margin-bottom: 28px; }
+.golf-section h3 {
+  font-size: 19px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.golf-section h3 em { font-style: italic; color: var(--green); }
+.golf-section p {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.75;
+  font-weight: 300;
+  margin-bottom: 10px;
+}
+.golf-section p strong { color: var(--text); font-weight: 400; }
+.golf-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.golf-stat-row:last-child { border-bottom: none; }
+.golf-stat-row span:last-child { color: var(--green); }
+
+/* ── ICE TAB ── */
+.ice-drill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 17px;
+  margin-bottom: 10px;
+}
+.ice-drill h4 {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--accent);
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+.ice-drill p {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  font-weight: 300;
+  margin-bottom: 8px;
+}
+.ice-drill p:last-child { margin-bottom: 0; }
+.ice-drill p strong { color: var(--text); font-weight: 400; }
+
+/* ── GEAR TAB ── */
+.gear-item {
+  display: flex;
+  gap: 14px;
+  padding: 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 9px;
+}
+.gear-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  border-radius: var(--r-sm);
+}
+.gear-body strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 400;
+  margin-bottom: 3px;
+  color: var(--text);
+}
+.gear-body p {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* ── UTILITY ── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 22px 0;
+}
+.section-note {
+  font-size: 14px;
+  color: var(--text-dimmer);
+  font-style: italic;
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+.bottom-note {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.1em;
+  margin-top: 24px;
+  line-height: 1.8;
+}
+
+@media (max-width: 360px) {
+  .header h1 { font-size: 26px; }
+  .tab-btn { padding: 12px 12px; font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-eyebrow">Personal · Movement & Recovery · 12 Weeks</div>
+  <h1>Getting back<br>to <em>feeling</em> yourself</h1>
+  <p class="header-sub">A program built around what you're actually dealing with — a full day, a tired body at night, and a mind that needs to re-enter through the physical. Not a gym plan. A practice.</p>
+  <div class="header-meta">
+    <div class="header-stat"><span>3×</span>per week</div>
+    <div class="header-stat"><span>~45 min</span>full session</div>
+    <div class="header-stat"><span>10 min</span>minimum entry</div>
+    <div class="header-stat"><span>2/10</span>pain now</div>
+  </div>
+</div>
+
+<!-- TONIGHT MODE -->
+<div class="tonight-banner" onclick="toggleTonight()">
+  <div class="tonight-dot"></div>
+  <div class="tonight-text"><strong>Tired tonight?</strong> — There's a 10-minute version. Tap here.</div>
+  <div class="tonight-arrow" id="tonight-arrow">▾</div>
+</div>
+<div class="tonight-panel" id="tonight-panel">
+  <p>Some nights the day takes everything. <strong>That's not weakness — that's the pattern you're in right now.</strong> The worst thing the program can do is become another obligation that adds guilt when you skip it.</p>
+  <p>On those nights, do just these three. In your living room. In whatever you're wearing. Five minutes in, your body usually remembers it wants this.</p>
+  <ul class="mini-list">
+    <li>Supine TVA Breathing <span>3 min</span></li>
+    <li>Deadbug × 6 per side <span>4 min</span></li>
+    <li>Banded Monster Walks × 10 each way <span>3 min</span></li>
+  </ul>
+  <p style="margin-top:14px; font-size:14px;">That's it. That's a session. The full program waits for when you have more. <em>Starting always beats not starting.</em></p>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('program', this)">Program</button>
+    <button class="tab-btn" onclick="showTab('golf', this)">Golf</button>
+    <button class="tab-btn" onclick="showTab('ice', this)">On Ice</button>
+    <button class="tab-btn" onclick="showTab('progress', this)">Progress</button>
+    <button class="tab-btn" onclick="showTab('milestones', this)">Milestones</button>
+    <button class="tab-btn" onclick="showTab('gear', this)">Gear</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ PROGRAM -->
+<div id="tab-program" class="panel active">
+
+  <div id="done-banner" class="session-done">
+    <h3>Session done.</h3>
+    <p>You felt something. That's the whole point.</p>
+    <button class="reset-link" onclick="resetSession()">Reset for next session</button>
+  </div>
+
+  <!-- PHASE 1 -->
+  <div class="phase-header">
+    <div class="phase-num">Phase 01 · 10–12 min</div>
+    <div class="phase-title">Breathing &amp; <em>core pressure</em></div>
+    <div class="phase-note">Start here every time, including the 10-min version</div>
+  </div>
+
+  <!-- Ex 1: TVA Breathing -->
+  <div class="ex-card" id="ex0">
+    <div class="ex-card-top" onclick="toggleEx('ex0')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex0')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Supine TVA Breathing</div>
+        <div class="ex-sets">3 sets · 5–6 breaths · band not needed</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Lie on your back, knees bent, feet flat on the floor. Let everything go. Breathe in slowly through your nose and try to send the air sideways and backward — into your obliques and the sides of your lower ribcage — rather than lifting your chest. The ribs stay down. Breathe out slowly, and as you do, let the lower belly draw very gently inward. Nothing forceful. Just a subtle gathering.</p>
+      </div>
+      <div class="feel-box">
+        What you're looking for: a sense of the trunk filling 360 degrees, like a cylinder pressurizing from the inside. The floor contact at your lower back stays consistent throughout.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">This is a good exercise for that dissociative awareness you described. Let the breath happen while you watch it from the outside — noticing what moves, what doesn't, where the expansion feels blocked. You're observing your own body re-learning a pattern it lost at the desk.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Why it matters for golf</span>
+        <p class="cue-text">Anterior pelvic tilt — your desk posture — forces the spine into extension at address. That extension restricts how far your thorax can rotate. As a left-hander with a natural fade, your shoulder turn is already working against a tightened backswing. This breath restores the pelvis-rib relationship that unlocks that rotation.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Why it matters for hockey</span>
+        <p class="cue-text">Core pressure — intra-abdominal pressure built by this breathing pattern — is what transfers force from skate to ice without the spine compensating. Skating without it is like pushing through a soft wall. Every stride you take right now is slightly inefficient because of this. This exercise is where you rebuild the wall.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 2: Deadbug -->
+  <div class="ex-card" id="ex1">
+    <div class="ex-card-top" onclick="toggleEx('ex1')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex1')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Deadbug — Leg Extension</div>
+        <div class="ex-sets">3 sets · 6 reps per side · band not needed</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+        <span class="tag tag-knee">Knee Safe</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Stay on your back from the breathing. Keep the TVA engagement from the last exercise — that subtle gathering feeling. Slowly lower one heel toward the floor while the other leg stays bent. The lower back must not lose contact with the floor. If it does, your range was too much. Return and switch sides. Move slowly enough that you can feel what's happening.</p>
+      </div>
+      <div class="feel-box">
+        The job of the core here is to do nothing. The leg moves; the trunk stays absolutely still. That stillness under load is the skill you're building.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">Watch yourself doing this from the outside — notice which side the back loses contact first. Notice if the ribs flare upward when the leg descends. These are data points, not failures. You're mapping your own compensation patterns in real time.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf crossover</span>
+        <p class="cue-text">The anti-rotation control you're building here is the same demand your pelvis faces during your downswing. For a left-hander, the lead hip must resist rotation while the upper body delivers the club. This exercise trains that exact timing — just with a leg instead of a club.</p>
+      </div>
+      <div class="knee-note">
+        Right knee: Full leg extension is low-load here. If you feel anything anterior at the knee, reduce how far the leg travels — don't stop, just shorten the range.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="phase-header">
+    <div class="phase-num">Phase 02 · 10 min</div>
+    <div class="phase-title">Scapular &amp; <em>serratus</em> stability</div>
+    <div class="phase-note">Connects your rib cage to your shoulder — the missing link in your swing and your skating posture</div>
+  </div>
+
+  <!-- Ex 3: Wall Y -->
+  <div class="ex-card" id="ex2">
+    <div class="ex-card-top" onclick="toggleEx('ex2')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex2')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Wall Y Raises</div>
+        <div class="ex-sets">3 sets · 10 reps · band optional for resistance</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Stand with your head and back lightly touching a wall. Raise your arms into a Y shape — thumbs pointing away from the wall. Slide them upward slowly. Keep the ribs down, the lower back from arching away from the wall, and the shoulders away from your ears. The wall gives you instant honest feedback on whether you're compensating.</p>
+      </div>
+      <div class="feel-box">
+        You're looking for the lower part of the shoulder blade to engage — a pulling sensation underneath and inward, not a shrug. If the shoulders ride up, you've handed the work to the wrong muscles. Reset.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf — why this matters specifically for you</span>
+        <p class="cue-text">As a left-hander, your lead shoulder (right) needs to move under your chin during the backswing. Inhibited serratus — which is almost certainly part of your postural picture — restricts this. Your body compensates by lifting the shoulder instead of rotating it, which is one mechanical source of the over-the-top tendency that produces your fade. This exercise begins to restore that movement.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 4: Plank serratus -->
+  <div class="ex-card" id="ex3">
+    <div class="ex-card-top" onclick="toggleEx('ex3')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex3')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Plank with Serratus Push</div>
+        <div class="ex-sets">3 sets · 30 seconds · band not needed</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">High plank on hands, or forearm plank — whichever keeps your lower back neutral. Hold the plank with a long spine. Every 5–6 seconds, push the floor away and spread the shoulder blades apart — making the upper back wide and flat — then return to the resting plank. The rest of the hold is stillness.</p>
+      </div>
+      <div class="feel-box">
+        The push-away feeling: shoulder blades wrapping around the rib cage outward, like wings opening slightly. The neck stays long and uninvolved throughout.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Hockey payoff</span>
+        <p class="cue-text">Torso stiffness under load is the platform your skating strides push from. Without it, force generated by the hips bleeds into spinal movement rather than transferring to the blade. This drill builds the bridge between your breathing work and your leg power.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 5: Serratus wall press -->
+  <div class="ex-card" id="ex4">
+    <div class="ex-card-top" onclick="toggleEx('ex4')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex4')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Serratus Wall Press Hold</div>
+        <div class="ex-sets">3 sets · 20 seconds · band not needed</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-golf">Golf</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Face a wall. Both hands at shoulder height, arms straight. Press actively into the wall and drive your shoulder blades forward and outward around your rib cage. Hold. Neck relaxed, ribs down, jaw unclenched. Simply press and stay.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf payoff</span>
+        <p class="cue-text">Your natural fade as a left-hander has a postural component. When the shoulder blades wing off the ribcage — which is part of your desk posture picture — your shoulder setup at address tilts in a way that promotes an outward swing path. Rebuilding serratus strength helps your blades sit flush, which improves your address geometry and gradually softens the fade without you consciously manipulating the swing.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3 -->
+  <div class="phase-header">
+    <div class="phase-num">Phase 03 · 15–20 min</div>
+    <div class="phase-title">Lower body strength &amp; <em>knee alignment</em></div>
+    <div class="phase-note">Rebuilding what 14 months of tendinopathy took — systematically and safely</div>
+  </div>
+
+  <!-- Ex 6: Band-assisted Bulgarian -->
+  <div class="ex-card" id="ex5">
+    <div class="ex-card-top" onclick="toggleEx('ex5')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex5')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Split Squat — Step &amp; Band Assist</div>
+        <div class="ex-sets">3 sets · 6–8 reps per leg · step + band optional</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+        <span class="tag tag-knee">Knee Rehab</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Rear foot elevated on your step or a stair. Front foot forward. Stand tall, torso upright. Lower slowly — 3 counts — letting the front knee travel forward over the toes without collapsing inward. Push through the full front foot to return. Start with bodyweight. Add your 10lb kettlebell in one or both hands when it feels controlled rather than effortful.</p>
+      </div>
+      <div class="feel-box">
+        <strong>Band use:</strong> Loop a band around your front knee and anchor it to something beside you. This gives the knee something to push outward against, which activates the glute medius automatically. Particularly useful for the right leg in early weeks.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">Watch the front knee track — ideally in a mirror or glass door. Notice whether it drifts inward as fatigue sets in. That drift is your glute medius stepping out. It's not a fault; it's feedback. Push the knee out, feel the hip engage, note the difference. This is the proprioceptive loop that rebuilds the pattern.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Hockey payoff</span>
+        <p class="cue-text">Every skating stride is this movement — one leg pushing, one leg loaded. The right leg asymmetry you feel on the ice traces directly to the strength deficit this exercise addresses. As both legs equalize here, stride symmetry returns. The step you've lost isn't gone; it's waiting for this work to finish.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf payoff</span>
+        <p class="cue-text">Your left (lead) leg must create a stable post through impact. Single-leg strength here prevents your left knee from riding outward, which robs you of speed before it reaches the club. This is one of the cleanest distance gains available to you without changing your swing at all.</p>
+      </div>
+      <div class="knee-note">
+        Right knee at 2–3/10: You're cleared to load progressively. Slow, controlled descent protects the tendon. If pain climbs above 3/10 during a set, reduce depth — don't push through a rising signal. Log the pain score after each session.
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 7: Spanish squat with band -->
+  <div class="ex-card" id="ex6">
+    <div class="ex-card-top" onclick="toggleEx('ex6')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex6')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Spanish Squats — Band</div>
+        <div class="ex-sets">3 sets · 10 reps · loop band around fixed point</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-knee">Tendon Rehab</span>
+        <span class="tag tag-hockey">Hockey</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Loop a resistance band around a fixed point at knee height — a table leg, door handle, stair rail. Step back so the band sits behind both knees under tension. Stand feet hip width. Sit back and down into a squat, keeping your torso upright and shins relatively vertical — the band holds the knees in place while the quads load. Hold 2 seconds at the bottom. Return slowly.</p>
+      </div>
+      <div class="feel-box">
+        This is tendon rehabilitation in the form of a strength exercise. The slow loading and the brief hold at the bottom is exactly how patellar tendons are stimulated to remodel after tendinopathy. This isn't supplementary — it's medicine.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Hockey payoff</span>
+        <p class="cue-text">The skating crouch demands sustained quad loading at a knee angle very close to this. You're conditioning the tendon for the exact position skating puts you in — building the tolerance back up without the reactive load of ice.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 8: Lateral step downs -->
+  <div class="ex-card" id="ex7">
+    <div class="ex-card-top" onclick="toggleEx('ex7')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex7')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Lateral Step Downs</div>
+        <div class="ex-sets">3 sets · 8 reps per leg · step required</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-knee">Knee Alignment</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Stand on your step on one foot. The other foot hangs off the side. Slowly lower that free foot toward the floor — 3 counts — without touching down. Return. Use fingertips on a wall for balance only, not support. Watch the standing knee in a mirror or reflective surface.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">This exercise was designed for exactly the kind of self-observation you described. Watch the knee — does it drift inward? At what point in the descent? Does it happen earlier on the right leg than the left? That's information. Push the knee outward against the drift, feel which hip muscle fires to hold it. You are teaching your nervous system a new default.</p>
+      </div>
+      <div class="feel-box">
+        The knee tracking outward over the middle two toes: that's the target. Achieving it means the glute medius fired correctly. When it starts happening without you thinking about it — that's when the change has become neurological, not just muscular.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 4 -->
+  <div class="phase-header">
+    <div class="phase-num">Phase 04 · 10 min</div>
+    <div class="phase-title">Hip control &amp; <em>lateral power</em></div>
+    <div class="phase-note">Turning strength into the force patterns both sports require</div>
+  </div>
+
+  <!-- Ex 9: Driver stance push -->
+  <div class="ex-card" id="ex8">
+    <div class="ex-card-top" onclick="toggleEx('ex8')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex8')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Driver Stance Lateral Push</div>
+        <div class="ex-sets">3 sets · 10 reps per side · band anchored low</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Take your driver address position — wide base, hip hinge, spine angle forward. Anchor a band low to something fixed and loop it around one ankle for light resistance. From this position, push your foot outward into the floor while simultaneously driving that knee outward. Hold 2 seconds at the peak push. Feel the chain: foot arch, ankle, knee, glute — all working together in one lateral push. Switch sides.</p>
+      </div>
+      <div class="feel-box green">
+        This is the highest-efficiency exercise in your program. The same kinetic chain fires in a skating push and in your golf swing load. You are training both sports at once, in a position that already feels like sports.
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf — specific to your swing</span>
+        <p class="cue-text">For a left-hander, the right side loads the backswing and the left side drives the downswing. This drill builds both halves. The right side push trains the load into your trail hip. The left side push trains the stable post your lead leg needs through impact. This is where your distance ceiling gets raised — not by swinging harder, but by building the platform the swing fires from.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 10: Monster walks -->
+  <div class="ex-card" id="ex9">
+    <div class="ex-card-top" onclick="toggleEx('ex9')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex9')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Banded Monster Walks</div>
+        <div class="ex-sets">3 sets · 10 steps each direction · band around knees</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-knee">Knee Rehab</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Band around your knees or ankles. Drop into a slight hip hinge — the hockey stance position. Step sideways slowly, maintaining constant outward pressure against the band. Knees push out against it the entire time. Ten steps one direction, then return. Do not let the knees cave inward between steps.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">As you step, notice whether the glute fatigue comes first or the quad. In the early weeks it will be the quads — they're compensating. As the glute medius strengthens over weeks, you'll feel the burn move to the outer hip instead. That shift is the signal that your body is reassigning the job to the right muscle.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Hockey payoff</span>
+        <p class="cue-text">Glute medius weakness is the root cause of your bilateral knee valgus on ice. This is the most direct fix available. Over 6–8 weeks you'll notice the knees staying outward on the ice without conscious effort. That's the nervous system update completing.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 11: Lateral bounds -->
+  <div class="ex-card" id="ex10">
+    <div class="ex-card-top" onclick="toggleEx('ex10')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex10')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Lateral Skater Bounds</div>
+        <div class="ex-sets">3 sets · 8 reps per side · weeks 7+ for right leg</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Push off one leg laterally, land on the opposite leg and hold the landing — 2 to 3 seconds — before the next bound. Soft landing with a bent knee. Distance is secondary to landing quality. Build the distance over weeks, not sessions.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">On the landing: observe the knee. Does it track outward? Does the hip drop? Is the landing quiet or heavy? Every landing is a diagnostic. You're watching your own body in slow motion, using each rep to update the motor program.</p>
+      </div>
+      <div class="knee-note">
+        Right leg bounds: only add these when your right-leg split squat load matches your left within 10%. That's the clearance gate. Until then, monster walks and step-downs carry the lateral training.
+      </div>
+    </div>
+  </div>
+
+  <!-- Ex 12: SL RDL -->
+  <div class="ex-card" id="ex11">
+    <div class="ex-card-top" onclick="toggleEx('ex11')">
+      <div class="ex-tick" onclick="event.stopPropagation(); tickEx('ex11')">✓</div>
+      <div class="ex-name-group">
+        <div class="ex-name">Single-Leg Romanian Deadlift</div>
+        <div class="ex-sets">3 sets · 8 per leg · 10lb KB or bodyweight</div>
+      </div>
+      <div class="ex-chevron">▾</div>
+    </div>
+    <div class="ex-body">
+      <div class="ex-tags">
+        <span class="tag tag-hockey">Hockey</span>
+        <span class="tag tag-golf">Golf</span>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">How to do it</span>
+        <p class="cue-text">Stand on one leg. Hold your 10lb kettlebell in the opposite hand. Hinge at the hip — not the waist — while extending the free leg behind you. Keep the spine long, hips level, standing knee soft. Return by driving the hip forward. Slow enough to feel the posterior chain working throughout. Bodyweight is fine if the KB feels like too much.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">The witness cue</span>
+        <p class="cue-text">This is a balance and proprioception exercise as much as a strength one. Find a fixed point to look at. Notice the micro-corrections happening in your foot — all those small adjustments are your nervous system learning. The wobble is not a failure; it's the work.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label">Hockey payoff</span>
+        <p class="cue-text">The glide phase — balanced on one blade after a push — is this exact demand. Every second you can hold a clean single-leg balance in training translates directly to glide time and confidence on the ice. This is where skating steadiness is built, not on the ice.</p>
+      </div>
+      <div class="cue-section">
+        <span class="cue-label green">Golf payoff</span>
+        <p class="cue-text">Maintaining spine angle through impact — not standing up early — is a hip hinge problem. This drill rebuilds the pattern and the strength. As it improves, you'll find it easier to stay down through the ball, which directly affects strike quality and consistency with your 7-iron.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-note">
+    Tap ✓ on each exercise as you go.<br>
+    12 checked = session complete.<br>
+    The feeling of muscle fatigue is information. Stay with it.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ GOLF -->
+<div id="tab-golf" class="panel">
+  <p class="section-note">This tab is for understanding the connections — how your desk posture is affecting your swing, and what in this program is fixing it. Read it once when you have space to think it through.</p>
+
+  <div class="golf-section">
+    <h3>Your fade, your posture, and <em>the hidden link</em></h3>
+    <p>A natural fade as a left-hander is common — but yours has a postural amplifier. Anterior pelvic tilt pushes your lumbar spine into extension at address. That extension tightens the thoracolumbar fascia and compresses the rotation available in your thoracic spine. Less thoracic rotation means a shorter backswing coil, which your body compensates for by swinging the arms on a more outward path — the classic producer of a fade or pull.</p>
+    <p>As the TVA breathing work and hip mobility in this program begins to restore pelvic neutral, you'll feel your address posture settle — <strong>spine taller, hips less pitched forward</strong>. The backswing will deepen. The fade will soften, not because you've changed your swing consciously, but because your body can finally do what you're asking it to do.</p>
+  </div>
+
+  <div class="golf-section">
+    <h3>The one breath before <em>every shot</em></h3>
+    <p>Before address, take your TVA breath. In through the nose, feel the sides and back of the ribs expand, exhale and feel the pelvis settle. One breath. That's it. It sets core pressure, neutralizes the pelvis, and gives you a consistent physical starting point for every swing. Tour players do this without naming it. Now you have the name.</p>
+  </div>
+
+  <div class="golf-section">
+    <h3>Scapular freedom &amp; <em>your shoulder turn</em></h3>
+    <p>Your lead shoulder (right, as a left-hander) needs to move under your chin during the backswing. When the serratus is inhibited — which is your current situation from desk posture and rib flare — the scapula wings off the ribcage. That winging restricts the path the shoulder can travel, so you lift it instead of rotating it. The lift shallows the shoulder turn and promotes the over-the-top move.</p>
+    <p>The Wall Y Raises and Serratus Wall Press are directly rebuilding this. By week 6, <strong>you should feel the right shoulder move more deeply under your chin</strong> without any conscious swing thought. That's the fix arriving.</p>
+  </div>
+
+  <div class="golf-section">
+    <h3>Distance — the <em>real math</em></h3>
+    <p>You don't need to swing harder. You need to stop losing the speed you already generate. Lead-leg collapse, early extension, poor hip clearance — each one bleeds speed before it reaches the face. This program addresses all three simultaneously.</p>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; margin-top: 12px;">
+      <div class="golf-stat-row"><span>Current mini driver</span><span>230–240 yards</span></div>
+      <div class="golf-stat-row"><span>Expected at week 12</span><span>245–255 yards</span></div>
+      <div class="golf-stat-row"><span>Driver of the gain</span><span>Lead leg post + core pressure</span></div>
+      <div class="golf-stat-row"><span>7-iron improvement</span><span>Consistency first, then distance</span></div>
+    </div>
+  </div>
+
+  <div class="golf-section">
+    <h3>Three drills to add at <em>the range</em></h3>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 9px;">
+      <p style="font-size:14px; color:var(--green); font-family:'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; font-style:normal;">GLUTE ACTIVATION — PRE-ROUND</p>
+      <p>10 monster walk steps in driver stance before first swing. Wakes the glute medius up after sitting. Takes 90 seconds. Makes an immediate difference in how stable your first few swings feel.</p>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 9px;">
+      <p style="font-size:14px; color:var(--green); font-family:'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; font-style:normal;">SPLIT STANCE SWING — 7-IRON</p>
+      <p>Pull your lead foot (left) back into a staggered stance. Hit half-swing shots. Forces you to feel and use the trail hip properly — loading it rather than sliding past it. 10–15 balls, then return to normal stance and notice what's changed in the feel.</p>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px;">
+      <p style="font-size:14px; color:var(--green); font-family:'JetBrains Mono',monospace; letter-spacing:0.1em; margin-bottom:8px; font-style:normal;">STEP-THROUGH DRILL — HIP CLEARANCE</p>
+      <p>After impact, let your trail foot (right) step forward as the follow-through completes. Trains lead hip clearance — the rotation of the left hip out of the way — which is limited by the same anterior tilt that tightens your skating stride. Start with short irons, then bring it to the mini driver.</p>
+    </div>
+  </div>
+  <div class="bottom-note">Golf and hockey share a kinetic chain.<br>Every exercise in this program is building both at once.</div>
+</div>
+
+<!-- ══════════════════════════════════ ICE -->
+<div id="tab-ice" class="panel">
+  <p class="section-note">These drills go at the start of each skate, when you're fresh. Quality of movement matters more than reps. When fatigue sets in, stop the drill — don't grind through bad patterns.</p>
+
+  <div class="ice-drill">
+    <h4>Glide-Push Distance Drill</h4>
+    <p>Push once from one leg with full hip extension — drive all the way through until the pushing leg is straight behind you — then glide as far as possible on the opposite blade before the next push. <strong>Maximum distance per stride, not maximum strides.</strong></p>
+    <p>Feel: the push coming through the middle of the blade and finishing at the toe. The glide leg stays bent, balanced, quiet. That single-blade balance is where your SL-RDL work shows up. Time yourself on one blade in each direction.</p>
+    <p style="font-size:14px; color:var(--text-dimmer); font-style:italic;">5–6 pushes per side. When your right-leg glide time equals your left — that's the stride symmetry restored. That's when speed comes back naturally.</p>
+  </div>
+
+  <div class="ice-drill">
+    <h4>Edge Pressure Walk</h4>
+    <p>Skate slowly down the ice and on each push, consciously press through the inside edge — feel the arch of the foot engaging, the ankle loading, the knee tracking outward. Exaggerate the knee-out position. One full length of the ice before skating naturally. You're ingraining the same lateral push pattern you train with monster walks and step-downs off the ice.</p>
+  </div>
+
+  <div class="ice-drill">
+    <h4>One-Leg Glide Balance Test</h4>
+    <p>Gain a little momentum, then lift one skate and balance on the other blade. Hold. Time it with your phone. Log it in the Progress tab. This is your clearest weekly indicator of how the lateral chain is recovering.</p>
+    <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
+      <div class="golf-stat-row"><span>Week 1</span><span>Record your baseline</span></div>
+      <div class="golf-stat-row"><span>Week 6</span><span>Right ≥ 80% of left</span></div>
+      <div class="golf-stat-row"><span>Week 12</span><span>Right = left</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 17px;">
+    <p style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dimmer); margin-bottom:12px;">About the early fatigue</p>
+    <p style="font-size:15px; color:var(--text-dim); line-height:1.75; font-style:italic; font-weight:300;">The fatigue you feel early in a skate right now is not a fitness problem. It's a compensation cost. When the glute medius is weak, the lower back, hip flexors, and quads overwork to stabilise what the glute should be handling. Those muscles are not designed for sustained load — they fatigue quickly.</p>
+    <p style="font-size:15px; color:var(--text-dim); line-height:1.75; font-style:italic; font-weight:300; margin-top:10px;">As weeks 4–8 progress, the fatigue will push later into the skate. That's the signal — not improved cardio, but improved mechanical efficiency. The body stops spending energy on compensation and starts using it for skating.</p>
+  </div>
+  <div class="bottom-note">Skate with awareness, not anxiety.<br>The knee is at 2/10. Trust the process you're in.</div>
+</div>
+
+<!-- ══════════════════════════════════ PROGRESS -->
+<div id="tab-progress" class="panel">
+
+  <p class="prog-intro">Numbers without context are just numbers. These metrics exist so you can feel the progress that's happening even when it's invisible — the quad circumference closing, the glide time equalising, the pain score holding low. Log them once a week. Even approximate values are useful.</p>
+
+  <div class="week-row">
+    <label>Week</label>
+    <select id="wk-sel">
+      <option value="0">Week 0 — Baseline</option>
+      <option value="1">Week 1</option><option value="2">Week 2</option>
+      <option value="3">Week 3</option><option value="4">Week 4</option>
+      <option value="5">Week 5</option><option value="6">Week 6</option>
+      <option value="7">Week 7</option><option value="8">Week 8</option>
+      <option value="9">Week 9</option><option value="10">Week 10</option>
+      <option value="11">Week 11</option><option value="12">Week 12</option>
+    </select>
+  </div>
+
+  <div class="conf-row">
+    <div class="conf-row-label">
+      <span>How you felt in this session</span>
+      <span class="conf-val-display" id="cv-disp">—</span>
+    </div>
+    <div class="pips" id="pip-row">
+      <div class="pip" onclick="setConf(1)"></div><div class="pip" onclick="setConf(2)"></div>
+      <div class="pip" onclick="setConf(3)"></div><div class="pip" onclick="setConf(4)"></div>
+      <div class="pip" onclick="setConf(5)"></div><div class="pip" onclick="setConf(6)"></div>
+      <div class="pip" onclick="setConf(7)"></div><div class="pip" onclick="setConf(8)"></div>
+      <div class="pip" onclick="setConf(9)"></div><div class="pip" onclick="setConf(10)"></div>
+    </div>
+    <div class="conf-desc" id="conf-desc">—</div>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">Quad Circumference</span><span class="metric-card-unit">cm · 6″ above kneecap</span></div>
+      <div class="inputs-row">
+        <div class="input-group"><label>Right Leg</label><input type="number" id="i-qr" placeholder="e.g. 48" step="0.1"></div>
+        <div class="input-group"><label>Left Leg</label><input type="number" id="i-ql" placeholder="e.g. 50" step="0.1"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">Split Squat Load</span><span class="metric-card-unit">kg/lb per hand · 0 = bodyweight</span></div>
+      <div class="inputs-row">
+        <div class="input-group"><label>Right Leg</label><input type="number" id="i-ssr" placeholder="0" step="1"></div>
+        <div class="input-group"><label>Left Leg</label><input type="number" id="i-ssl" placeholder="0" step="1"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">Single-Leg Balance</span><span class="metric-card-unit">seconds · eyes open</span></div>
+      <div class="inputs-row">
+        <div class="input-group"><label>Right</label><input type="number" id="i-br" placeholder="sec" step="1"></div>
+        <div class="input-group"><label>Left</label><input type="number" id="i-bl" placeholder="sec" step="1"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">One-Leg Glide (Ice)</span><span class="metric-card-unit">seconds on blade</span></div>
+      <div class="inputs-row">
+        <div class="input-group"><label>Right Skate</label><input type="number" id="i-gr" placeholder="sec" step="0.5"></div>
+        <div class="input-group"><label>Left Skate</label><input type="number" id="i-gl" placeholder="sec" step="0.5"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">Right Knee Pain</span><span class="metric-card-unit">0–10 scale</span></div>
+      <div class="inputs-row solo">
+        <div class="input-group"><label>Pain Score</label><input type="number" id="i-pain" placeholder="2" min="0" max="10" step="0.5"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-card-head"><span class="metric-card-name">Notes</span><span class="metric-card-unit">optional</span></div>
+      <div class="inputs-row solo">
+        <div class="input-group"><label>Anything worth noting</label><input type="text" id="i-notes" placeholder="What did you notice?"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveWk()">Save this week</button>
+  <button class="export-btn" onclick="exportCSV()">↓ Export CSV for Excel</button>
+
+  <div class="history-wrap" id="hist-wrap">
+    <div class="history-label">Logged weeks</div>
+    <div class="history-scroll">
+      <table class="htable">
+        <thead><tr>
+          <th>Wk</th><th>R Quad</th><th>L Quad</th><th>Δ</th>
+          <th>SS R</th><th>SS L</th><th>Pain</th><th>Feel</th>
+        </tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="bottom-note">Data lives in this session.<br>Export to CSV to keep it permanently.</div>
+</div>
+
+<!-- ══════════════════════════════════ MILESTONES -->
+<div id="tab-milestones" class="panel">
+
+  <p class="section-note">These aren't goals to chase. They're things that will happen as a result of the work — things to notice and acknowledge when they arrive. Tap each one when it does.</p>
+
+  <div class="ms-phase-label">Weeks 1–3 · Re-establishing contact</div>
+
+  <div class="ms-item" id="ms0" onclick="tapMs('ms0')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Baseline recorded</strong><span>The starting line is set. Everything from here is forward.</span></div>
+    <div class="ms-week">Wk 0</div>
+  </div>
+  <div class="ms-item" id="ms1" onclick="tapMs('ms1')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>First TVA breath felt correctly</strong><span>360° expansion, ribs down, floor contact. The body remembered.</span></div>
+    <div class="ms-week">Wk 1</div>
+  </div>
+  <div class="ms-item" id="ms2" onclick="tapMs('ms2')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Muscle fatigue felt after a session</strong><span>Not soreness — the good kind of tired. A signal that something is working.</span></div>
+    <div class="ms-week">Wk 1–2</div>
+  </div>
+  <div class="ms-item" id="ms3" onclick="tapMs('ms3')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Knee holds at 2/10 or below through all sets</strong><span>The load is calibrated. The tendon is tolerating.</span></div>
+    <div class="ms-week">Wk 2</div>
+  </div>
+  <div class="ms-item" id="ms4" onclick="tapMs('ms4')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Step-down with no knee cave — both legs</strong><span>The nervous system has updated. The glute med showed up.</span></div>
+    <div class="ms-week">Wk 3</div>
+  </div>
+
+  <div class="ms-phase-label">Weeks 4–6 · Building</div>
+
+  <div class="ms-item" id="ms5" onclick="tapMs('ms5')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Added load to split squats — both legs</strong><span>Strength returning. The KB is in the program now.</span></div>
+    <div class="ms-week">Wk 4</div>
+  </div>
+  <div class="ms-item" id="ms6" onclick="tapMs('ms6')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Fatigue pushing later in the skate</strong><span>Compensation cost dropping. Efficiency is rising.</span></div>
+    <div class="ms-week">Wk 5–6</div>
+  </div>
+  <div class="ms-item" id="ms7" onclick="tapMs('ms7')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Golf backswing feels deeper</strong><span>The thoracic rotation is unlocking. The body is giving you back range it had locked away.</span></div>
+    <div class="ms-week">Wk 6</div>
+  </div>
+  <div class="ms-item" id="ms8" onclick="tapMs('ms8')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Right-leg glide reaches 80% of left on ice</strong><span>Asymmetry visibly narrowing. The stride is coming back.</span></div>
+    <div class="ms-week">Wk 6</div>
+  </div>
+
+  <div class="ms-phase-label">Weeks 7–12 · Returning to yourself</div>
+
+  <div class="ms-item" id="ms9" onclick="tapMs('ms9')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Lateral bounds cleared for right leg</strong><span>Split squat symmetry confirmed. The reactive load is safe now.</span></div>
+    <div class="ms-week">Wk 7</div>
+  </div>
+  <div class="ms-item" id="ms10" onclick="tapMs('ms10')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Glide time equalised on both skates</strong><span>Stride symmetry recovered. This is the moment the step returns.</span></div>
+    <div class="ms-week">Wk 9</div>
+  </div>
+  <div class="ms-item" id="ms11" onclick="tapMs('ms11')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Knee pain at 0–1/10 through full sessions</strong><span>14 months of recovery completed. The tendon has remodelled.</span></div>
+    <div class="ms-week">Wk 10</div>
+  </div>
+  <div class="ms-item" id="ms12" onclick="tapMs('ms12')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Mini driver carrying 245+ yards</strong><span>Lead leg strength and core pressure delivering distance you built, not borrowed.</span></div>
+    <div class="ms-week">Wk 11</div>
+  </div>
+  <div class="ms-item" id="ms13" onclick="tapMs('ms13')">
+    <div class="ms-dot">✓</div>
+    <div class="ms-body"><strong>Moving without thinking about the knee</strong><span>The goal underneath all the goals. Physical freedom. Back to just being in your body.</span></div>
+    <div class="ms-week">Wk 12</div>
+  </div>
+
+  <div class="ms-counter"><span id="ms-count">0</span> / 14 milestones</div>
+  <div class="bottom-note">Each one is a thing that happened, not a thing you performed.<br>Notice it. Tap it. Move on.</div>
+</div>
+
+<!-- ══════════════════════════════════ GEAR -->
+<div id="tab-gear" class="panel">
+  <p class="section-note">Most of what you need, you already have. This tab is about using it correctly and making one or two small adjustments that remove friction from the program.</p>
+
+  <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dimmer); margin: 0 0 10px;">Skate setup</div>
+
+  <div class="gear-item">
+    <div class="gear-icon">🔪</div>
+    <div class="gear-body">
+      <strong>Blade hollow: 5/8"</strong>
+      <p>Improved glide reduces muscular cost per stride during recovery. Less quad load per shift while the tendon continues to heal.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">⚖️</div>
+    <div class="gear-body">
+      <strong>Edge level check</strong>
+      <p>Ask your sharpener to verify both edges are balanced. An unlevel blade creates a subtle compensation pattern that adds stress to the knee on every stride — invisible until it isn't.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">📐</div>
+    <div class="gear-body">
+      <strong>Profiling: Quad 1 (optional, week 4+)</strong>
+      <p>If skating still feels heel-biased after four weeks, Quad 1 profiling shifts the balance point forward, encouraging a more mid-blade stance that naturally reduces anterior knee load. Ask your sharpener.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">👟</div>
+    <div class="gear-body">
+      <strong>Lacing: second-from-top firm, top loose</strong>
+      <p>Allows the ankle to flex properly into the skating crouch, which reduces compensatory quad overloading that aggravates the patellar tendon.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dimmer); margin-bottom:10px;">What you need for the program</div>
+
+  <div class="gear-item">
+    <div class="gear-icon">🟡</div>
+    <div class="gear-body">
+      <strong>Resistance bands (loop style)</strong>
+      <p>Light and medium. Used for Spanish Squats, Monster Walks, Driver Stance Push, and Wall Y Raises with added resistance. You have these.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">🏋️</div>
+    <div class="gear-body">
+      <strong>10lb kettlebell</strong>
+      <p>For Single-Leg RDLs when bodyweight feels easy. You have this. It's enough for the first several weeks — don't rush to add more weight.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">📦</div>
+    <div class="gear-body">
+      <strong>A step (stair or sturdy box)</strong>
+      <p>For Split Squats and Lateral Step Downs. A stair in your house works perfectly — you don't need to go anywhere.</p>
+    </div>
+  </div>
+  <div class="gear-item">
+    <div class="gear-icon">📱</div>
+    <div class="gear-body">
+      <strong>This program on your home screen</strong>
+      <p>iPhone: Share → Add to Home Screen. Android: ⋮ menu → Add to Home Screen. One tap from wherever you are in the house at night.</p>
+    </div>
+  </div>
+  <div class="bottom-note">Everything you need is close to where you are.<br>That's deliberate.</div>
+</div>
+
+<script>
+// ── Tonight mode ──
+function toggleTonight() {
+  const p = document.getElementById('tonight-panel');
+  const a = document.getElementById('tonight-arrow');
+  const open = p.classList.toggle('open');
+  a.textContent = open ? '▴' : '▾';
+}
+
+// ── Tab navigation ──
+function showTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ── Exercise accordion ──
+function toggleEx(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ── Exercise tick ──
+const TOTAL = 12;
+function tickEx(id) {
+  document.getElementById(id).classList.toggle('done');
+  const done = document.querySelectorAll('.ex-card.done').length;
+  const banner = document.getElementById('done-banner');
+  banner.style.display = done >= TOTAL ? 'block' : 'none';
+  if (done >= TOTAL) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function resetSession() {
+  document.querySelectorAll('.ex-card').forEach(c => c.classList.remove('done', 'open'));
+  document.getElementById('done-banner').style.display = 'none';
+}
+
+// ── Confidence ──
+let confVal = null;
+const confDescs = ['','A hard night. Showing up still counts.','A hard night. Showing up still counts.','Got through it.','Got through it.','Solid session.','Solid session.','Something clicked.','Something clicked.','In the zone.','Fully present. This is the feeling.'];
+function setConf(v) {
+  confVal = v;
+  document.getElementById('cv-disp').textContent = v + '/10';
+  document.getElementById('conf-desc').textContent = confDescs[v];
+  document.querySelectorAll('.pip').forEach((p, i) => p.classList.toggle('on', i < v));
+}
+
+// ── Progress data ──
+const store = {};
+function saveWk() {
+  const w = document.getElementById('wk-sel').value;
+  const g = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
+  store[w] = {
+    qr: g('i-qr'), ql: g('i-ql'),
+    ssr: g('i-ssr'), ssl: g('i-ssl'),
+    br: g('i-br'), bl: g('i-bl'),
+    gr: g('i-gr'), gl: g('i-gl'),
+    pain: g('i-pain'),
+    conf: confVal,
+    notes: document.getElementById('i-notes').value || ''
+  };
+  renderHistory();
+  const btn = document.querySelector('.save-btn');
+  btn.textContent = 'Saved ✓';
+  setTimeout(() => btn.textContent = 'Save this week', 1800);
+}
+
+function renderHistory() {
+  const keys = Object.keys(store).sort((a,b) => +a - +b);
+  if (!keys.length) { document.getElementById('hist-wrap').style.display = 'none'; return; }
+  document.getElementById('hist-wrap').style.display = 'block';
+  const tbody = document.getElementById('hist-body');
+  tbody.innerHTML = '';
+  keys.forEach(w => {
+    const d = store[w];
+    const diff = d.qr != null && d.ql != null ? Math.abs(d.ql - d.qr).toFixed(1) : '—';
+    const painClass = d.pain != null ? (d.pain <= 2 ? 'good' : d.pain <= 4 ? 'warn' : '') : '';
+    tbody.innerHTML += `<tr>
+      <td>${w}</td>
+      <td>${d.qr ?? '—'}</td><td>${d.ql ?? '—'}</td><td>${diff}</td>
+      <td>${d.ssr ?? '—'}</td><td>${d.ssl ?? '—'}</td>
+      <td class="${painClass}">${d.pain ?? '—'}</td>
+      <td>${d.conf ? d.conf+'/10' : '—'}</td>
+    </tr>`;
+  });
+}
+
+function exportCSV() {
+  const h = 'Week,QuadR,QuadL,QuadDiff,SplitSquatR,SplitSquatL,BalanceR,BalanceL,GlideR,GlideL,Pain,Confidence,Notes';
+  const rows = [h];
+  Object.keys(store).sort((a,b) => +a - +b).forEach(w => {
+    const d = store[w];
+    const diff = d.qr != null && d.ql != null ? Math.abs(d.ql - d.qr).toFixed(1) : '';
+    rows.push([w,d.qr??'',d.ql??'',diff,d.ssr??'',d.ssl??'',d.br??'',d.bl??'',d.gr??'',d.gl??'',d.pain??'',d.conf??'',`"${d.notes}"`].join(','));
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
+  a.download = 'movement-progress.csv';
+  a.click();
+}
+
+// ── Milestones ──
+function tapMs(id) {
+  document.getElementById(id).classList.toggle('hit');
+  const total = document.querySelectorAll('.ms-item').length;
+  const hit = document.querySelectorAll('.ms-item.hit').length;
+  document.getElementById('ms-count').textContent = hit;
+}
+</script>
+</body>
+</html>
