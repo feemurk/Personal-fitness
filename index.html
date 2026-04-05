@@ -1789,48 +1789,777 @@ body {
 </div>
 
 <script>
-(function() {
-  'use strict';
+(function () {
+'use strict';
 
-  // ── PHASE 1 STUB JS ──
-  // Full IIFE module system comes in Phase 2.
-  // This stub satisfies Phase 1 test gate only.
+// ─────────────────────────────────────────
+// APP_CONFIG
+// ─────────────────────────────────────────
+const APP_CONFIG = {
+  AT_API: 'https://api.airtable.com/v0',
+  AT_META: 'https://api.airtable.com/v0/meta/bases',
 
-  const TOTAL_EX = 12;
+  PHASE_EXERCISES: {
+    'Phase 1 Breathing':  ['ex0','ex1'],
+    'Phase 2 Scapular':   ['ex2','ex3','ex4'],
+    'Phase 3 Lower Body': ['ex5','ex6','ex7'],
+    'Phase 4 Power':      ['ex8','ex9','ex10','ex11']
+  },
 
-  // Nav switching
-  function showPanel(name) {
+  FIELDS: {
+    Session_Type:       ['Strength & Rehab','On-Ice Hockey','Golf Range','Golf Round','Recovery Only'],
+    Program_Week:       ['0','1','2','3','4','5','6','7','8','9','10','11','12','12+'],
+    Time_Slot:          ['Morning (<9am)','Midday (9–2pm)','Afternoon (2–6pm)','Evening (6–9pm)','Late Night (9pm+)'],
+    Completion_Level:   ['Full Session','Tonight Mode Only','Partial Ph1','Partial Ph1+2','Partial Ph1-3','Skipped'],
+    Entry_State:        ['Energized','Neutral','Mildly Fatigued','Fatigued','Depleted/High Stress'],
+    Recovery_Quality:   ['Poor','Below Average','Moderate','Good','Excellent'],
+    Knee_Pain:          ['0 — None','1','2','3 — Noticeable','4','5 — Significant','6','7','8 — Severe','9','10'],
+    Session_Confidence: ['1','2','3','4','5','6','7','8','9','10'],
+    Body_Awareness:     ['Not present','Brief contact','Intermittent','Sustained','Full witness mode'],
+    Breathing_Pattern:  ['Chest dominant','Mixed','Consistent 360°','Natural 360° automatic'],
+    TVA_Engagement:     ['Not felt','Breathing phases only','During exercises','Consistent throughout'],
+    Movement_Quality:   ['Compensation dominant','Mixed','Mostly clean','Clean throughout'],
+    Posterior_Chain:    ['Not accessed','Intermittent','Consistent','Strong'],
+    // Hockey
+    On_Ice_Duration:    ['Under 30 min','30–45 min','45–60 min','60–90 min','90 min+'],
+    Edge_Commitment:    ['1 Center-biased','2','3 Full outside edge','4','5 Deep aggressive'],
+    Push_Completion:    ['1 Pulling early','2','3 Full extension','4','5 Extension + glide hold'],
+    Right_Leg_Load:     ['1 Avoided','2 Compensating','3 Moderate','4 Strong','5 Symmetric'],
+    Stride_Length_Feel: ['1 Short/choppy','2','3 Extended','4','5 Long and powerful'],
+    Skating_Fatigue:    ['Immediate','First half','Second half','Late skate','Held throughout'],
+    // Golf
+    Golf_Format:        ['Range short game','Range full swing','Range mixed','9 holes','18 holes'],
+    Hip_Clearance:      ['1 Blocked','2','3 On time','4','5 Full rotation'],
+    Spine_Angle:        ['1 Lost early','2','3 Maintained to impact','4','5 Full finish'],
+    Trail_Leg_Load:     ['1 Avoided','2 Minimal','3 Appropriate','4','5 Overloaded'],
+    Ball_Flight:        ['Left pull','Straight','Natural fade','Push','Push fade'],
+    Distance_vs_Normal: ['Well below','Slightly below','Normal','Slightly above','Well above'],
+    Pre_Shot_Breath:    ['Not used','Sometimes','Most shots','Every shot']
+  },
+
+  FIELD_DESCRIPTIONS: {
+    Entry_State: {
+      what: 'Your energy and mental state at session start.',
+      why: 'Correlates session quality with baseline state — helps identify whether low-energy sessions still produce value over time.',
+      options: {
+        'Energized': 'Physically ready, awake, willing.',
+        'Neutral': 'Neither fresh nor spent. Default for most weekday evenings.',
+        'Mildly Fatigued': 'Tired from the day but functional. Most common honest state.',
+        'Fatigued': 'Significantly low energy. You showed up anyway.',
+        'Depleted/High Stress': 'Running on empty. Tonight Mode or recovery only is appropriate.'
+      }
+    },
+    Recovery_Quality: {
+      what: 'Sleep quality and systemic recovery going into this session.',
+      why: 'Poor recovery + training load = higher injury risk and slower adaptation.',
+      options: {
+        'Poor': 'Fewer than 5 hours sleep, high stress, or multiple consecutive training days.',
+        'Below Average': 'Disrupted sleep or moderate fatigue carrying over.',
+        'Moderate': 'Adequate sleep (6–7 hours), manageable stress.',
+        'Good': 'Solid sleep (7–8 hours), low stress, at least one rest day prior.',
+        'Excellent': 'Full rest, 8+ hours sleep, low life stress.'
+      }
+    },
+    Body_Awareness: {
+      what: 'Quality of proprioceptive and interoceptive engagement during the session.',
+      why: 'Witness mode is the primary engagement mechanism for this athlete.',
+      options: {
+        'Not present': 'Going through motions. No internal observation.',
+        'Brief contact': '1–2 moments where you noticed something real.',
+        'Intermittent': 'In and out of awareness across exercises.',
+        'Sustained': 'Body awareness present for most of the session.',
+        'Full witness mode': 'Dissociative awareness active — body moving, you observing from outside.'
+      }
+    },
+    Breathing_Pattern: {
+      what: 'Dominant breathing pattern observed during the session.',
+      why: 'Chest-dominant breathing inhibits TVA and reduces IAP.',
+      options: {
+        'Chest dominant': 'Ribs elevated on inhale. TVA not co-activating.',
+        'Mixed': 'Alternating between chest and diaphragmatic.',
+        'Consistent 360°': '360° expansion maintained with effort throughout.',
+        'Natural 360° automatic': 'Full diaphragmatic pattern without conscious effort.'
+      }
+    },
+    TVA_Engagement: {
+      what: 'How consistently the deep core (TVA) engaged during the session.',
+      why: 'TVA engagement is the foundation of all force transfer — skating push, golf rotation, spinal protection.',
+      options: {
+        'Not felt': 'No sense of deep core activation.',
+        'Breathing phases only': 'TVA activated during Phase 1, lost during loaded exercises.',
+        'During exercises': 'Could feel TVA engaging during exercise sets when focusing.',
+        'Consistent throughout': 'TVA present and maintainable across all phases without cueing.'
+      }
+    },
+    Movement_Quality: {
+      what: 'Overall quality of movement patterns — how much compensation was present.',
+      why: 'Compensation patterns reduce training stimulus and reinforce dysfunction.',
+      options: {
+        'Compensation dominant': 'Most movements driven by compensatory patterns.',
+        'Mixed': 'Some sets clean, others compensated.',
+        'Mostly clean': 'Compensations occasional and correctable in session.',
+        'Clean throughout': 'Movement patterns maintained across all exercises.'
+      }
+    },
+    Knee_Pain: {
+      what: 'Right knee pain level during this session.',
+      why: 'Tracks tendon tolerance under progressive load. Stay below 3/10 during sets.',
+      options: {
+        '0 — None': 'No pain at any point.',
+        '3 — Noticeable': 'Present but not limiting. Acceptable training range.',
+        '5 — Significant': 'Affecting form or reps. Reduce load.',
+        '8 — Severe': 'Stop the set. Log it.'
+      }
+    },
+    Session_Confidence: {
+      what: 'How confident and present you felt in this session.',
+      why: 'Tracks the root goal — confidence is the outcome, not just a feeling.',
+      options: {
+        '1': 'A hard night. Showing up still counts.',
+        '5': 'Solid session.',
+        '8': 'Something clicked.',
+        '10': 'Fully present. This is the feeling.'
+      }
+    },
+    Completion_Level: {
+      what: 'How much of the planned session was completed.',
+      why: 'Partial sessions are valid data — not failures.',
+      options: {
+        'Full Session': 'All 4 phases completed.',
+        'Tonight Mode Only': 'The 3-exercise 10-min version.',
+        'Partial Ph1': 'Phase 1 only.',
+        'Partial Ph1+2': 'Phases 1 and 2.',
+        'Partial Ph1-3': 'Phases 1 through 3.',
+        'Skipped': 'Logged but no exercises completed.'
+      }
+    },
+    Edge_Commitment: {
+      what: 'Willingness and ability to commit weight to the outside edge on pushes and cuts.',
+      why: 'Edge fear is the primary on-ice confidence issue. Caused by right knee instability.',
+      options: {
+        '1 Center-biased': 'Weight staying over blade center. Protecting the knee.',
+        '3 Full outside edge': 'Full weight on outside edge achievable. Not yet habitual.',
+        '5 Deep aggressive': 'Deep edge angles available and controlled. Confidence fully restored.'
+      }
+    },
+    Push_Completion: {
+      what: 'How fully the skating push is completed — specifically hip extension at finish.',
+      why: 'Short glide = early weight transfer = fewer meters per stride = fatigue.',
+      options: {
+        '1 Pulling early': 'Weight transferring before push finishes.',
+        '3 Full extension': 'Hip extends to full range at push completion.',
+        '5 Extension + glide hold': 'Full extension + holding the glide before next stride.'
+      }
+    },
+    Hip_Clearance: {
+      what: 'How fully and on-time the left hip clears in the golf downswing.',
+      why: 'Hip clearance timing is the primary power and consistency driver for this athlete.',
+      options: {
+        '1 Blocked': 'Left hip not clearing. Swing going around the body.',
+        '3 On time': 'Hip clearing on sequence with the downswing initiation.',
+        '5 Full rotation': 'Complete rotation, effortless. Trail side fully releases through impact.'
+      }
+    },
+    Pre_Shot_Breath: {
+      what: 'How consistently the 4-count TVA activation breath was used in the pre-shot routine.',
+      why: 'The pre-shot breath activates TVA and shifts the nervous system toward parasympathetic.',
+      options: {
+        'Not used': 'No breath protocol before shots.',
+        'Sometimes': 'Used on some shots, usually only after a bad shot.',
+        'Most shots': 'Used on 70%+ of shots.',
+        'Every shot': 'Full automatic pre-shot breath protocol. Integrated.'
+      }
+    }
+  },
+
+  MILESTONE_NAMES: [
+    'Baseline recorded','First TVA breath felt correctly',
+    'Muscle fatigue felt after a session','Knee holds at 2/10 or below through all sets',
+    'Step-down with no knee cave — both legs','Added load to split squats — both legs',
+    'Fatigue pushing later in the skate','Golf backswing feels deeper',
+    'Right-leg glide reaches 80% of left on ice','Lateral bounds cleared for right leg',
+    'Glide time equalised on both skates','Knee pain at 0–1/10 through full sessions',
+    'Mini driver carrying 245+ yards','Moving without thinking about the knee'
+  ]
+};
+
+// ─────────────────────────────────────────
+// StorageService
+// ─────────────────────────────────────────
+const StorageService = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} },
+  remove: (k) => localStorage.removeItem(k),
+
+  getTheme: () => localStorage.getItem('theme') || 'dark',
+  setTheme: (v) => localStorage.setItem('theme', v),
+
+  isConfigured: () => !!(localStorage.getItem('AT_PAT') && localStorage.getItem('AT_BASE_ID')),
+  getPAT: () => localStorage.getItem('AT_PAT'),
+  getBaseId: () => localStorage.getItem('AT_BASE_ID'),
+  setCredentials: (pat, baseId) => {
+    localStorage.setItem('AT_PAT', pat);
+    localStorage.setItem('AT_BASE_ID', baseId);
+  },
+  clearCredentials: () => {
+    localStorage.removeItem('AT_PAT');
+    localStorage.removeItem('AT_BASE_ID');
+  },
+
+  getDraftSession: () => StorageService.get('draft_session'),
+  setDraftSession: (v) => StorageService.set('draft_session', v),
+  clearDraftSession: () => StorageService.remove('draft_session'),
+
+  getWeeklyMetrics: () => StorageService.get('weekly_metrics') || {},
+  setWeeklyMetrics: (v) => StorageService.set('weekly_metrics', v),
+
+  getMilestones: () => StorageService.get('milestones') || {},
+  setMilestones: (v) => StorageService.set('milestones', v),
+
+  getLogValues: () => StorageService.get('log_values') || {}
+};
+
+// ─────────────────────────────────────────
+// AirtableService (stubbed — Phase 3 fills these in)
+// ─────────────────────────────────────────
+const AirtableService = {
+  _headers: () => ({
+    'Authorization': 'Bearer ' + StorageService.getPAT(),
+    'Content-Type': 'application/json'
+  }),
+
+  createSession: async (fields) => {
+    console.log('[AT stub] createSession', fields);
+    return { id: 'stub_' + Date.now() };
+  },
+  patchSession: async (recordId, fields) => {
+    console.log('[AT stub] patchSession', recordId, fields);
+    return { id: recordId };
+  },
+  getDraftSessions: async () => {
+    console.log('[AT stub] getDraftSessions');
+    return [];
+  },
+  createWeeklyMetric: async (fields) => {
+    console.log('[AT stub] createWeeklyMetric', fields);
+    return { id: 'stub_wk_' + Date.now() };
+  },
+  createMilestone: async (fields) => {
+    console.log('[AT stub] createMilestone', fields);
+    return { id: 'stub_ms_' + Date.now() };
+  },
+  testConnection: async () => {
+    console.log('[AT stub] testConnection');
+    return true;
+  },
+  createSchema: async () => {
+    console.log('[AT stub] createSchema');
+    return true;
+  }
+};
+
+// ─────────────────────────────────────────
+// SessionMachine
+// ─────────────────────────────────────────
+const SessionMachine = {
+  STATES: ['IDLE','STARTING','ACTIVE','LOGGING','SAVING','COMPLETE'],
+  state: 'IDLE',
+  recordId: null,
+  tickedExercises: new Set(),
+  completedPhases: new Set(),
+
+  getState: () => SessionMachine.state,
+
+  transition: async function(newState) {
+    const prev = this.state;
+    this.state = newState;
+    const draft = StorageService.getDraftSession();
+    const updated = Object.assign({}, draft, {
+      state: newState,
+      recordId: this.recordId,
+      ticked: [...this.tickedExercises],
+      phases: [...this.completedPhases],
+      updatedAt: Date.now()
+    });
+    StorageService.setDraftSession(updated);
+    console.log('[SM]', prev, '→', newState);
+  },
+
+  start: async function() {
+    await this.transition('STARTING');
+    const draft = StorageService.getDraftSession() || {};
+    const logVals = StorageService.getLogValues();
+    try {
+      const rec = await AirtableService.createSession({
+        Date: new Date().toISOString().slice(0,10),
+        Sync_Status: 'Draft',
+        ...logVals
+      });
+      this.recordId = rec.id;
+    } catch(e) {
+      UI.Snackbar.show('Offline — session saved locally');
+    }
+    await this.transition('ACTIVE');
+  },
+
+  tickExercise: function(exId) {
+    if (this.tickedExercises.has(exId)) {
+      this.tickedExercises.delete(exId);
+    } else {
+      this.tickedExercises.add(exId);
+    }
+    this._checkPhaseCompletion();
+    StorageService.setDraftSession(Object.assign({}, StorageService.getDraftSession(), {
+      ticked: [...this.tickedExercises]
+    }));
+  },
+
+  _checkPhaseCompletion: function() {
+    for (const [phase, exercises] of Object.entries(APP_CONFIG.PHASE_EXERCISES)) {
+      if (!this.completedPhases.has(phase) && exercises.every(ex => this.tickedExercises.has(ex))) {
+        this.completedPhases.add(phase);
+        if (this.recordId) {
+          AirtableService.patchSession(this.recordId, {
+            Phases_Completed: [...this.completedPhases]
+          }).catch(() => {});
+        }
+      }
+    }
+  },
+
+  toLogging: async function() {
+    await this.transition('LOGGING');
+  },
+
+  save: async function(logValues) {
+    await this.transition('SAVING');
+    try {
+      if (this.recordId) {
+        await AirtableService.patchSession(this.recordId, {
+          ...logValues,
+          Sync_Status: 'Complete',
+          Phases_Completed: [...this.completedPhases]
+        });
+      }
+    } catch(e) {
+      UI.Snackbar.show('Saved locally — will sync when online');
+    }
+    await this.transition('COMPLETE');
+  },
+
+  reset: function() {
+    this.state = 'IDLE';
+    this.recordId = null;
+    this.tickedExercises = new Set();
+    this.completedPhases = new Set();
+    StorageService.clearDraftSession();
+  },
+
+  restore: function(draft) {
+    if (!draft) return;
+    this.state = draft.state || 'IDLE';
+    this.recordId = draft.recordId || null;
+    this.tickedExercises = new Set(draft.ticked || []);
+    this.completedPhases = new Set(draft.phases || []);
+  }
+};
+
+// ─────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────
+const UI = {};
+
+// ── UI.Snackbar ──
+UI.Snackbar = {
+  _timer: null,
+  show: function(msg, duration) {
+    duration = duration || 3000;
+    const el = document.getElementById('snackbar');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => el.classList.remove('show'), duration);
+  }
+};
+
+// ── UI.BottomSheet ──
+UI.BottomSheet = {
+  _currentField: null,
+  _onSelect: null,
+
+  open: function(fieldKey, options, onSelect, title) {
+    this._currentField = fieldKey;
+    this._onSelect = onSelect;
+    const backdrop = document.getElementById('sheet-backdrop');
+    const sheet = document.getElementById('bottom-sheet');
+    const titleEl = document.getElementById('sheet-title');
+    const optionsEl = document.getElementById('sheet-options');
+    const currentVal = StorageService.getLogValues()[fieldKey];
+
+    titleEl.textContent = title || fieldKey.replace(/_/g, ' ');
+    optionsEl.innerHTML = '';
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'sheet-option' + (opt === currentVal ? ' selected' : '');
+      btn.textContent = opt;
+      btn.dataset.value = opt;
+      optionsEl.appendChild(btn);
+    });
+    backdrop.classList.add('open');
+    sheet.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  },
+
+  close: function() {
+    document.getElementById('sheet-backdrop').classList.remove('open');
+    document.getElementById('bottom-sheet').classList.remove('open');
+    document.body.style.overflow = '';
+    this._currentField = null;
+    this._onSelect = null;
+  },
+
+  handleSelect: function(value) {
+    if (this._onSelect) this._onSelect(this._currentField, value);
+    this.close();
+  }
+};
+
+// ── UI.FieldInfo (tooltip) ──
+UI.FieldInfo = {
+  _mode: null, // 'hover' | 'locked'
+  _isMobile: window.matchMedia('(hover: none)').matches,
+
+  show: function(fieldKey, anchorEl, mode) {
+    const desc = APP_CONFIG.FIELD_DESCRIPTIONS[fieldKey];
+    if (!desc) return;
+    const tooltip = document.getElementById('field-tooltip');
+    document.getElementById('tooltip-title').textContent = fieldKey.replace(/_/g, ' ');
+    document.getElementById('tooltip-what').textContent = desc.what;
+    document.getElementById('tooltip-why').textContent = desc.why;
+    const ul = document.getElementById('tooltip-options');
+    ul.innerHTML = '';
+    if (desc.options) {
+      Object.entries(desc.options).forEach(([k, v]) => {
+        const li = document.createElement('li');
+        li.innerHTML = '<strong>' + k + '</strong>: ' + v;
+        ul.appendChild(li);
+      });
+    }
+    tooltip.removeAttribute('hidden');
+    this._mode = mode;
+    this._position(tooltip, anchorEl);
+  },
+
+  hide: function() {
+    document.getElementById('field-tooltip').setAttribute('hidden', '');
+    this._mode = null;
+  },
+
+  _position: function(tooltip, anchor) {
+    const rect = anchor.getBoundingClientRect();
+    const tw = 320;
+    let left = Math.min(rect.left, window.innerWidth - tw - 16);
+    left = Math.max(left, 16);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    let top;
+    if (spaceBelow >= 200) {
+      top = rect.bottom + 8;
+    } else {
+      top = rect.top - 8;
+      tooltip.style.transform = 'translateY(-100%)';
+    }
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.style.transform = spaceBelow >= 200 ? '' : 'translateY(-100%)';
+  }
+};
+
+// ── UI.Nav ──
+UI.Nav = {
+  show: function(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-btn, .rail-btn').forEach(b => b.classList.remove('active'));
     const panel = document.getElementById('panel-' + name);
     if (panel) panel.classList.add('active');
     document.querySelectorAll('[data-panel="' + name + '"]').forEach(b => b.classList.add('active'));
   }
+};
 
-  // Exercise card accordion
-  function toggleEx(id) {
+// ── UI.Today ──
+UI.Today = {
+  TOTAL: 12,
+
+  toggleEx: function(id) {
     document.getElementById(id).classList.toggle('open');
-  }
+  },
 
-  // Exercise tick
-  function tickEx(id) {
-    document.getElementById(id).classList.toggle('done');
+  tickEx: function(id) {
+    const card = document.getElementById(id);
+    const wasDone = card.classList.contains('done');
+    card.classList.toggle('done');
+    SessionMachine.tickExercise(id);
     const done = document.querySelectorAll('.ex-card.done').length;
     const banner = document.getElementById('done-banner');
-    banner.style.display = done >= TOTAL_EX ? 'block' : 'none';
-    if (done >= TOTAL_EX) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+    const show = done >= this.TOTAL;
+    banner.style.display = show ? 'block' : 'none';
+    if (show) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (SessionMachine.getState() === 'IDLE' && !wasDone) {
+      SessionMachine.start();
+    }
+  },
 
-  // Tonight Mode
-  function toggleTonight() {
+  toggleTonight: function() {
     const panel = document.getElementById('tonight-panel');
     const arrow = document.getElementById('tonight-arrow');
     const open = panel.classList.toggle('open');
     arrow.textContent = open ? '▴' : '▾';
-  }
+  },
 
-  // Theme
-  function applyTheme(theme) {
+  resetSession: function() {
+    document.querySelectorAll('.ex-card').forEach(c => c.classList.remove('done', 'open'));
+    document.getElementById('done-banner').style.display = 'none';
+    SessionMachine.reset();
+  },
+
+  restoreFromDraft: function(draft) {
+    if (!draft || !draft.ticked) return;
+    draft.ticked.forEach(id => {
+      const card = document.getElementById(id);
+      if (card) card.classList.add('done');
+    });
+    const done = document.querySelectorAll('.ex-card.done').length;
+    if (done >= this.TOTAL) {
+      document.getElementById('done-banner').style.display = 'block';
+    }
+  }
+};
+
+// ── UI.ResumeBanner ──
+UI.ResumeBanner = {
+  show: function(draft) {
+    const banner = document.getElementById('resume-banner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+  },
+  hide: function() {
+    const banner = document.getElementById('resume-banner');
+    if (banner) banner.style.display = 'none';
+  },
+  resume: function() {
+    const draft = StorageService.getDraftSession();
+    if (!draft) return;
+    SessionMachine.restore(draft);
+    UI.Today.restoreFromDraft(draft);
+    this.hide();
+    UI.Nav.show('today');
+  }
+};
+
+// ── UI.Log ──
+UI.Log = {
+  _values: {},
+
+  init: function() {
+    this._values = StorageService.getLogValues();
+    this._refreshAll();
+  },
+
+  _refreshAll: function() {
+    Object.entries(this._values).forEach(([k, v]) => this._updateDisplay(k, v));
+    this._updateSportFields();
+  },
+
+  _updateDisplay: function(field, value) {
+    const el = document.getElementById('log-val-' + field);
+    if (el) {
+      el.textContent = value || '—';
+      const row = el.closest('.log-field-row');
+      if (row) row.classList.toggle('has-value', !!value);
+    }
+  },
+
+  openSheet: function(fieldKey) {
+    const options = APP_CONFIG.FIELDS[fieldKey];
+    if (!options) return;
+    const labels = {
+      Session_Type: 'Session type', Program_Week: 'Program week',
+      Time_Slot: 'Time of day', Completion_Level: 'Completion',
+      Entry_State: 'Energy & state', Recovery_Quality: 'Recovery quality',
+      Knee_Pain: 'Knee pain', Session_Confidence: 'Session confidence',
+      Body_Awareness: 'Body awareness', Breathing_Pattern: 'Breathing pattern',
+      TVA_Engagement: 'TVA engagement', Movement_Quality: 'Movement quality',
+      Posterior_Chain: 'Posterior chain', On_Ice_Duration: 'Ice time',
+      Edge_Commitment: 'Edge commitment', Push_Completion: 'Push completion',
+      Right_Leg_Load: 'Right leg load', Stride_Length_Feel: 'Stride length feel',
+      Skating_Fatigue: 'When fatigue hit', Golf_Format: 'Format',
+      Hip_Clearance: 'Hip clearance', Spine_Angle: 'Spine angle',
+      Trail_Leg_Load: 'Trail leg load', Ball_Flight: 'Ball flight',
+      Distance_vs_Normal: 'Distance vs normal', Pre_Shot_Breath: 'Pre-shot breath'
+    };
+    UI.BottomSheet.open(fieldKey, options, (field, value) => {
+      this._values[field] = value;
+      StorageService.set('log_values', this._values);
+      this._updateDisplay(field, value);
+      if (field === 'Session_Type') this._updateSportFields();
+    }, labels[fieldKey] || fieldKey.replace(/_/g,' '));
+  },
+
+  _updateSportFields: function() {
+    const type = this._values['Session_Type'] || '';
+    const hockey = document.getElementById('log-hockey-fields');
+    const golf = document.getElementById('log-golf-fields');
+    if (hockey) hockey.classList.toggle('visible', type.toLowerCase().includes('ice') || type.toLowerCase().includes('hockey'));
+    if (golf) golf.classList.toggle('visible', type.toLowerCase().includes('golf'));
+  },
+
+  showForm: function() {
+    document.getElementById('log-no-session').style.display = 'none';
+    document.getElementById('log-form').style.display = 'block';
+  },
+
+  save: async function() {
+    const values = this._values;
+    await SessionMachine.save(values);
+    UI.Snackbar.show('Session saved ✓');
+    StorageService.remove('log_values');
+    this._values = {};
+    this._refreshAll();
+  }
+};
+
+// ── UI.Progress ──
+UI.Progress = {
+  save: function() {
+    const g = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
+    const week = document.getElementById('wk-sel').value;
+    const metrics = StorageService.getWeeklyMetrics();
+    metrics[week] = {
+      qr: g('i-qr'), ql: g('i-ql'),
+      ssr: g('i-ssr'), ssl: g('i-ssl'),
+      br: g('i-br'), bl: g('i-bl'),
+      gr: g('i-gr'), gl: g('i-gl'),
+      sb: g('i-sb'), bw: g('i-bw')
+    };
+    StorageService.setWeeklyMetrics(metrics);
+    this.renderHistory();
+    this.renderSparklines();
+    AirtableService.createWeeklyMetric({ Program_Week: week, ...metrics[week] }).catch(() => {});
+    UI.Snackbar.show('Week saved ✓');
+  },
+
+  renderHistory: function() {
+    const metrics = StorageService.getWeeklyMetrics();
+    const keys = Object.keys(metrics).sort((a, b) => +a - +b);
+    const wrap = document.getElementById('hist-wrap');
+    if (!keys.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    const tbody = document.getElementById('hist-body');
+    tbody.innerHTML = '';
+    keys.forEach(w => {
+      const d = metrics[w];
+      const diff = d.qr != null && d.ql != null ? Math.abs(d.ql - d.qr).toFixed(1) : '—';
+      tbody.innerHTML += `<tr>
+        <td>${w}</td>
+        <td>${d.qr ?? '—'}</td><td>${d.ql ?? '—'}</td><td>${diff}</td>
+        <td>${d.ssr ?? '—'}</td><td>${d.ssl ?? '—'}</td>
+        <td>${d.gr ?? '—'}</td><td>${d.gl ?? '—'}</td>
+      </tr>`;
+    });
+  },
+
+  renderSparklines: function() {
+    const metrics = StorageService.getWeeklyMetrics();
+    const keys = Object.keys(metrics).sort((a, b) => +a - +b).slice(-8);
+    const pain = keys.map(k => {
+      const logVals = StorageService.get('session_pain_' + k);
+      return logVals || null;
+    }).filter(v => v !== null);
+    const quad = keys.map(k => {
+      const d = metrics[k];
+      return d && d.qr != null && d.ql != null ? Math.abs(d.ql - d.qr) : null;
+    }).filter(v => v !== null);
+    this._drawSparkline('spark-quad', quad, '#6dd4f5');
+  },
+
+  _drawSparkline: function(svgId, data, color) {
+    const svg = document.getElementById(svgId);
+    if (!svg || data.length < 2) return;
+    const W = 60, H = 20, pad = 2;
+    const min = Math.min(...data), max = Math.max(...data);
+    const range = max - min || 1;
+    const pts = data.map((v, i) => {
+      const x = pad + (i / (data.length - 1)) * (W - pad * 2);
+      const y = H - pad - ((v - min) / range) * (H - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    svg.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  },
+
+  exportCSV: function() {
+    const metrics = StorageService.getWeeklyMetrics();
+    const h = 'Week,QuadR,QuadL,QuadDiff,SplitSquatR,SplitSquatL,BalanceR,BalanceL,GlideR,GlideL,SkaterBound,Bodyweight';
+    const rows = [h];
+    Object.keys(metrics).sort((a,b) => +a - +b).forEach(w => {
+      const d = metrics[w];
+      const diff = d.qr != null && d.ql != null ? Math.abs(d.ql - d.qr).toFixed(1) : '';
+      rows.push([w,d.qr??'',d.ql??'',diff,d.ssr??'',d.ssl??'',d.br??'',d.bl??'',d.gr??'',d.gl??'',d.sb??'',d.bw??''].join(','));
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+    a.download = 'movement-progress.csv';
+    a.click();
+  }
+};
+
+// ── UI.Milestones ──
+UI.Milestones = {
+  tap: function(id) {
+    const milestones = StorageService.getMilestones();
+    milestones[id] = !milestones[id];
+    StorageService.setMilestones(milestones);
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hit', !!milestones[id]);
+    const total = document.querySelectorAll('.ms-item').length;
+    const hit = document.querySelectorAll('.ms-item.hit').length;
+    const counter = document.getElementById('ms-count');
+    if (counter) counter.textContent = hit;
+    if (milestones[id]) {
+      AirtableService.createMilestone({
+        Milestone_Name: el ? el.querySelector('strong').textContent : id,
+        Date_Achieved: new Date().toISOString().slice(0,10)
+      }).catch(() => {});
+    }
+  },
+
+  restore: function() {
+    const milestones = StorageService.getMilestones();
+    let hit = 0;
+    document.querySelectorAll('.ms-item').forEach(el => {
+      if (milestones[el.id]) { el.classList.add('hit'); hit++; }
+    });
+    const counter = document.getElementById('ms-count');
+    if (counter) counter.textContent = hit;
+  }
+};
+
+// ── UI.Learn ──
+UI.Learn = {
+  show: function(name) {
+    document.querySelectorAll('.learn-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.learn-btn').forEach(b => b.classList.remove('active'));
+    const section = document.getElementById('learn-' + name);
+    if (section) section.classList.add('active');
+    document.querySelectorAll('[data-learn="' + name + '"]').forEach(b => b.classList.add('active'));
+  }
+};
+
+// ── UI.Settings ──
+UI.Settings = {
+  init: function() {
+    const el = document.getElementById('settings-connection-status');
+    if (el) el.textContent = StorageService.isConfigured() ? 'Connected' : 'Not configured';
+  },
+  applyTheme: function(theme) {
     const btn = document.getElementById('theme-toggle-btn');
     if (theme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
@@ -1839,66 +2568,281 @@ body {
       document.documentElement.removeAttribute('data-theme');
       if (btn) btn.textContent = '☀️ Light Mode';
     }
-  }
-
-  function toggleTheme() {
+  },
+  toggleTheme: function() {
     const current = document.documentElement.getAttribute('data-theme');
     const next = current === 'light' ? 'dark' : 'light';
-    localStorage.setItem('theme', next);
-    applyTheme(next);
+    StorageService.setTheme(next);
+    this.applyTheme(next);
   }
+};
 
-  // Learn sub-nav
-  function showLearnSection(name) {
-    document.querySelectorAll('.learn-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.learn-btn').forEach(b => b.classList.remove('active'));
-    const section = document.getElementById('learn-' + name);
-    if (section) section.classList.add('active');
-    document.querySelectorAll('[data-learn="' + name + '"]').forEach(b => b.classList.add('active'));
-  }
+// ── UI.Setup ──
+UI.Setup = {
+  _step: 1,
+  _pat: '',
+  _baseId: '',
 
-  // Event delegation
-  document.addEventListener('click', function(e) {
-    const btn = e.target.closest('[data-panel]');
-    if (btn && !btn.classList.contains('learn-btn')) {
-      showPanel(btn.dataset.panel);
+  show: function() {
+    document.getElementById('setup-overlay').removeAttribute('hidden');
+    this._goStep(1);
+  },
+  hide: function() {
+    document.getElementById('setup-overlay').setAttribute('hidden', '');
+  },
+
+  _goStep: function(n) {
+    this._step = n;
+    const label = document.getElementById('setup-step-label');
+    const title = document.getElementById('setup-title');
+    const desc = document.getElementById('setup-desc');
+    const btn = document.getElementById('setup-next-btn');
+    const status = document.getElementById('setup-status');
+    const card = document.querySelector('.setup-card');
+    status.textContent = '';
+    status.className = 'setup-status';
+
+    // Remove any previous input
+    const old = card.querySelector('.setup-input');
+    if (old) old.remove();
+
+    if (n === 1) {
+      label.textContent = 'Step 1 of 5';
+      title.textContent = 'Welcome';
+      desc.textContent = 'This app syncs your sessions to Airtable so your data persists across devices. Setup takes about 2 minutes. You\'ll need your Airtable Personal Access Token and Base ID.';
+      btn.textContent = 'Get Started';
+      btn.dataset.action = 'setup-next';
+    } else if (n === 2) {
+      label.textContent = 'Step 2 of 5';
+      title.textContent = 'Personal Access Token';
+      desc.textContent = 'Go to airtable.com/create/tokens and create a token with data.records:read, data.records:write, and schema.bases:write scopes.';
+      const inp = document.createElement('input');
+      inp.type = 'password'; inp.className = 'setup-input'; inp.id = 'setup-pat-input';
+      inp.placeholder = 'pat_...';
+      desc.after(inp);
+      btn.textContent = 'Next';
+      btn.dataset.action = 'setup-next';
+    } else if (n === 3) {
+      label.textContent = 'Step 3 of 5';
+      title.textContent = 'Base ID';
+      desc.textContent = 'Open your Airtable base, go to Help → API documentation. The Base ID starts with "app".';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'setup-input'; inp.id = 'setup-base-input';
+      inp.placeholder = 'app...';
+      desc.after(inp);
+      btn.textContent = 'Test Connection';
+      btn.dataset.action = 'setup-test';
+    } else if (n === 4) {
+      label.textContent = 'Step 4 of 5';
+      title.textContent = 'Creating Schema';
+      desc.textContent = 'Testing connection and creating your Airtable tables…';
+      btn.textContent = 'Continue';
+      btn.disabled = true;
+      btn.dataset.action = 'setup-next';
+      this._doSetup();
+    } else if (n === 5) {
+      label.textContent = 'Step 5 of 5';
+      title.textContent = 'Ready';
+      desc.textContent = 'Your Airtable base is connected. Every session you log will sync automatically. You can re-run setup anytime from Settings.';
+      btn.textContent = 'Start using the app';
+      btn.dataset.action = 'setup-done';
+    }
+  },
+
+  handleNext: function() {
+    if (this._step === 2) {
+      const val = document.getElementById('setup-pat-input');
+      if (!val || !val.value.trim()) {
+        document.getElementById('setup-status').textContent = 'Please enter your PAT.';
+        document.getElementById('setup-status').className = 'setup-status error';
+        return;
+      }
+      this._pat = val.value.trim();
+      this._goStep(3);
+    } else {
+      this._goStep(this._step + 1);
+    }
+  },
+
+  handleTest: function() {
+    const val = document.getElementById('setup-base-input');
+    if (!val || !val.value.trim()) {
+      document.getElementById('setup-status').textContent = 'Please enter your Base ID.';
+      document.getElementById('setup-status').className = 'setup-status error';
       return;
     }
+    this._baseId = val.value.trim();
+    StorageService.setCredentials(this._pat, this._baseId);
+    this._goStep(4);
+  },
+
+  _doSetup: async function() {
+    const status = document.getElementById('setup-status');
+    const btn = document.getElementById('setup-next-btn');
+    try {
+      await AirtableService.testConnection();
+      status.textContent = 'Connection successful. Creating tables…';
+      status.className = 'setup-status success';
+      await AirtableService.createSchema();
+      status.textContent = 'Schema created successfully.';
+      btn.disabled = false;
+    } catch(e) {
+      status.textContent = 'Error: ' + (e.message || 'Could not connect. Check your PAT and Base ID.');
+      status.className = 'setup-status error';
+      btn.disabled = false;
+      btn.textContent = 'Skip (use offline)';
+      btn.dataset.action = 'setup-done';
+    }
+  },
+
+  done: function() {
+    this.hide();
+    UI.Settings.init();
+    UI.Nav.show('today');
+  }
+};
+
+// ─────────────────────────────────────────
+// App
+// ─────────────────────────────────────────
+const App = {
+  init: function() {
+    // Theme
+    UI.Settings.applyTheme(StorageService.getTheme());
+
+    // Milestones restore
+    UI.Milestones.restore();
+
+    // Progress restore
+    UI.Progress.renderHistory();
+    UI.Progress.renderSparklines();
+
+    // Log init
+    UI.Log.init();
+
+    // Settings status
+    UI.Settings.init();
+
+    // Draft session check
+    const draft = StorageService.getDraftSession();
+    if (draft && draft.state && draft.state !== 'IDLE' && draft.state !== 'COMPLETE') {
+      SessionMachine.restore(draft);
+      UI.Today.restoreFromDraft(draft);
+      UI.ResumeBanner.show(draft);
+      UI.Log.showForm();
+    }
+
+    // First-launch setup
+    if (!StorageService.isConfigured()) {
+      UI.Setup.show();
+    }
+
+    // Event delegation
+    document.addEventListener('click', App._handleClick);
+    document.addEventListener('mouseenter', App._handleMouseEnter, true);
+    document.addEventListener('mouseleave', App._handleMouseLeave, true);
+  },
+
+  _handleClick: function(e) {
+    // Close tooltip on outside click
+    const tooltip = document.getElementById('field-tooltip');
+    if (!tooltip.hasAttribute('hidden') && UI.FieldInfo._mode === 'locked') {
+      if (!tooltip.contains(e.target) && !e.target.closest('.field-info-btn')) {
+        UI.FieldInfo.hide();
+      }
+    }
+
+    // Tooltip close btn
+    if (e.target.closest('#tooltip-close')) { UI.FieldInfo.hide(); return; }
+
+    // Field info btn (click = lock/toggle)
+    const infoBtn = e.target.closest('.field-info-btn');
+    if (infoBtn) {
+      e.stopPropagation();
+      const field = infoBtn.dataset.field;
+      if (tooltip.hasAttribute('hidden') || UI.FieldInfo._mode === 'hover') {
+        UI.FieldInfo.show(field, infoBtn, 'locked');
+      } else {
+        UI.FieldInfo.hide();
+      }
+      return;
+    }
+
+    // Sheet backdrop / option
+    if (e.target.closest('#sheet-backdrop')) { UI.BottomSheet.close(); return; }
+    const sheetOpt = e.target.closest('.sheet-option');
+    if (sheetOpt) { UI.BottomSheet.handleSelect(sheetOpt.dataset.value); return; }
+
+    // Nav
+    const navBtn = e.target.closest('[data-panel]');
+    if (navBtn && !navBtn.closest('.learn-subnav')) { UI.Nav.show(navBtn.dataset.panel); return; }
+
+    // Exercise accordion
     const toggle = e.target.closest('[data-toggle]');
-    if (toggle) {
-      e.stopPropagation();
-      toggleEx(toggle.dataset.toggle);
-      return;
-    }
+    if (toggle) { e.stopPropagation(); UI.Today.toggleEx(toggle.dataset.toggle); return; }
+
+    // Exercise tick
     const tick = e.target.closest('[data-tick]');
-    if (tick) {
-      e.stopPropagation();
-      tickEx(tick.dataset.tick);
-      return;
+    if (tick) { e.stopPropagation(); UI.Today.tickEx(tick.dataset.tick); return; }
+
+    // Milestone tap
+    const ms = e.target.closest('.ms-item');
+    if (ms) { UI.Milestones.tap(ms.id); return; }
+
+    // Actions
+    const action = e.target.closest('[data-action]');
+    if (!action) return;
+    switch (action.dataset.action) {
+      case 'toggle-tonight': UI.Today.toggleTonight(); break;
+      case 'reset-session': UI.Today.resetSession(); break;
+      case 'toggle-theme': UI.Settings.toggleTheme(); break;
+      case 'go-today': UI.Nav.show('today'); break;
+      case 'resume': UI.ResumeBanner.resume(); break;
+      case 'open-sheet':
+        const fieldKey = action.dataset.field || action.closest('[data-field]').dataset.field;
+        UI.Log.openSheet(fieldKey); break;
+      case 'save-log': UI.Log.save(); break;
+      case 'save-weekly': UI.Progress.save(); break;
+      case 'export-csv': UI.Progress.exportCSV(); break;
+      case 'run-setup': UI.Setup.show(); break;
+      case 'clear-credentials':
+        StorageService.clearCredentials();
+        UI.Settings.init();
+        UI.Snackbar.show('Credentials cleared'); break;
+      case 'setup-next': UI.Setup.handleNext(); break;
+      case 'setup-test': UI.Setup.handleTest(); break;
+      case 'setup-done': UI.Setup.done(); break;
     }
-    const tonight = e.target.closest('[data-action="toggle-tonight"]');
-    if (tonight) { toggleTonight(); return; }
 
-    const themeBtn = e.target.closest('[data-action="toggle-theme"]');
-    if (themeBtn) { toggleTheme(); return; }
-
-    const resetBtn = e.target.closest('[data-action="reset-session"]');
-    if (resetBtn) {
-      document.querySelectorAll('.ex-card').forEach(c => c.classList.remove('done', 'open'));
-      document.getElementById('done-banner').style.display = 'none';
-      return;
+    // Log field row tap (anywhere on the row, not just the arrow)
+    const logRow = e.target.closest('.log-field-row[data-field]');
+    if (logRow && !e.target.closest('.field-info-btn')) {
+      UI.Log.openSheet(logRow.dataset.field);
     }
-    const goToday = e.target.closest('[data-action="go-today"]');
-    if (goToday) { showPanel('today'); return; }
 
+    // Learn sub-nav
     const learnBtn = e.target.closest('[data-learn]');
-    if (learnBtn) { showLearnSection(learnBtn.dataset.learn); return; }
-  });
+    if (learnBtn) { UI.Learn.show(learnBtn.dataset.learn); return; }
+  },
 
-  // Init
-  document.addEventListener('DOMContentLoaded', function() {
-    applyTheme(localStorage.getItem('theme') || 'dark');
-  });
+  _handleMouseEnter: function(e) {
+    if (UI.FieldInfo._isMobile) return;
+    const btn = e.target.closest('.field-info-btn');
+    if (btn && UI.FieldInfo._mode !== 'locked') {
+      UI.FieldInfo.show(btn.dataset.field, btn, 'hover');
+    }
+  },
+
+  _handleMouseLeave: function(e) {
+    if (UI.FieldInfo._isMobile) return;
+    const btn = e.target.closest('.field-info-btn');
+    if (btn && UI.FieldInfo._mode === 'hover') {
+      UI.FieldInfo.hide();
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
 
 })();
 </script>
