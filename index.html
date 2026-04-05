@@ -2083,6 +2083,27 @@ const AirtableService = {
     return { id: data.id };
   },
 
+  getWeeklyMetrics: async function() {
+    const data = await this._fetch(this._baseUrl() + '/WEEKLY_METRICS?sort[0][field]=Program_Week&sort[0][direction]=asc');
+    return data.records || [];
+  },
+
+  patchWeeklyMetric: async function(recordId, fields) {
+    const data = await this._fetch(this._baseUrl() + '/WEEKLY_METRICS/' + recordId, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields })
+    });
+    return { id: data.id };
+  },
+
+  findWeeklyMetric: async function(week) {
+    const data = await this._fetch(
+      this._baseUrl() + '/WEEKLY_METRICS?filterByFormula=' + encodeURIComponent('Program_Week=' + week)
+    );
+    const records = data.records || [];
+    return records.length ? records[0] : null;
+  },
+
   createSchema: async function() {
     const baseId = StorageService.getBaseId();
     const metaUrl = APP_CONFIG.AT_META + '/' + baseId + '/tables';
@@ -2552,22 +2573,44 @@ UI.Log = {
 
 // ── UI.Progress ──
 UI.Progress = {
-  save: function() {
+  save: async function() {
     const g = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
     const week = document.getElementById('wk-sel').value;
     const metrics = StorageService.getWeeklyMetrics();
-    metrics[week] = {
+    const record = {
       qr: g('i-qr'), ql: g('i-ql'),
       ssr: g('i-ssr'), ssl: g('i-ssl'),
       br: g('i-br'), bl: g('i-bl'),
       gr: g('i-gr'), gl: g('i-gl'),
       sb: g('i-sb'), bw: g('i-bw')
     };
+    metrics[week] = record;
     StorageService.setWeeklyMetrics(metrics);
     this.renderHistory();
     this.renderSparklines();
-    AirtableService.createWeeklyMetric({ Program_Week: week, ...metrics[week] }).catch(() => {});
     UI.Snackbar.show('Week saved ✓');
+    if (StorageService.isConfigured()) {
+      try {
+        const atFields = {
+          Program_Week: parseFloat(week),
+          Bodyweight: record.bw, Quad_Right: record.qr, Quad_Left: record.ql,
+          Balance_Right: record.br, Balance_Left: record.bl,
+          Split_Squat_Load: record.ssr, Skater_Bound: record.sb,
+          Glide_Right: record.gr, Glide_Left: record.gl,
+          Date: new Date().toISOString().slice(0,10)
+        };
+        // Remove null fields before sending
+        Object.keys(atFields).forEach(k => { if (atFields[k] == null) delete atFields[k]; });
+        const existing = await AirtableService.findWeeklyMetric(week);
+        if (existing) {
+          await AirtableService.patchWeeklyMetric(existing.id, atFields);
+        } else {
+          await AirtableService.createWeeklyMetric(atFields);
+        }
+      } catch(e) {
+        UI.Snackbar.show('Saved locally — Airtable sync failed');
+      }
+    }
   },
 
   renderHistory: function() {
@@ -2858,6 +2901,9 @@ const App = {
     // First-launch setup
     if (!StorageService.isConfigured()) {
       UI.Setup.show();
+    } else {
+      // Seed localStorage from Airtable in background
+      App._syncFromAirtable();
     }
 
     // Event delegation
@@ -2962,6 +3008,51 @@ const App = {
     if (btn && UI.FieldInfo._mode === 'hover') {
       UI.FieldInfo.hide();
     }
+  }
+};
+
+  _syncFromAirtable: async function() {
+    try {
+      const records = await AirtableService.getWeeklyMetrics();
+      if (!records.length) return;
+      const metrics = StorageService.getWeeklyMetrics();
+      records.forEach(r => {
+        const f = r.fields;
+        const week = String(f.Program_Week != null ? f.Program_Week : '');
+        if (!week) return;
+        // Only overwrite if localStorage has no entry for this week
+        if (!metrics[week]) {
+          metrics[week] = {
+            qr: f.Quad_Right || null, ql: f.Quad_Left || null,
+            ssr: f.Split_Squat_Load || null, ssl: null,
+            br: f.Balance_Right || null, bl: f.Balance_Left || null,
+            gr: f.Glide_Right || null, gl: f.Glide_Left || null,
+            sb: f.Skater_Bound || null, bw: f.Bodyweight || null
+          };
+        }
+      });
+      StorageService.setWeeklyMetrics(metrics);
+      UI.Progress.renderHistory();
+      UI.Progress.renderSparklines();
+    } catch(e) {
+      // Silent — offline or unconfigured
+    }
+
+    // Also check for draft sessions from other devices
+    try {
+      const drafts = await AirtableService.getDraftSessions();
+      if (drafts.length && !StorageService.getDraftSession()) {
+        const r = drafts[0];
+        StorageService.setDraftSession({
+          state: 'ACTIVE',
+          recordId: r.id,
+          ticked: [],
+          phases: (r.fields.Phases_Completed || []),
+          updatedAt: Date.now()
+        });
+        UI.ResumeBanner.show(StorageService.getDraftSession());
+      }
+    } catch(e) {}
   }
 };
 
