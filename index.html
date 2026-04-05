@@ -2020,7 +2020,7 @@ const StorageService = {
 };
 
 // ─────────────────────────────────────────
-// AirtableService (stubbed — Phase 3 fills these in)
+// AirtableService
 // ─────────────────────────────────────────
 const AirtableService = {
   _headers: () => ({
@@ -2028,32 +2028,155 @@ const AirtableService = {
     'Content-Type': 'application/json'
   }),
 
-  createSession: async (fields) => {
-    console.log('[AT stub] createSession', fields);
-    return { id: 'stub_' + Date.now() };
+  _fetch: async function(url, opts) {
+    const res = await fetch(url, Object.assign({ headers: this._headers() }, opts));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || 'HTTP ' + res.status);
+    }
+    return res.json();
   },
-  patchSession: async (recordId, fields) => {
-    console.log('[AT stub] patchSession', recordId, fields);
-    return { id: recordId };
-  },
-  getDraftSessions: async () => {
-    console.log('[AT stub] getDraftSessions');
-    return [];
-  },
-  createWeeklyMetric: async (fields) => {
-    console.log('[AT stub] createWeeklyMetric', fields);
-    return { id: 'stub_wk_' + Date.now() };
-  },
-  createMilestone: async (fields) => {
-    console.log('[AT stub] createMilestone', fields);
-    return { id: 'stub_ms_' + Date.now() };
-  },
-  testConnection: async () => {
-    console.log('[AT stub] testConnection');
+
+  _baseUrl: () => APP_CONFIG.AT_API + '/' + StorageService.getBaseId(),
+
+  testConnection: async function() {
+    await this._fetch(APP_CONFIG.AT_META + '/' + StorageService.getBaseId());
     return true;
   },
-  createSchema: async () => {
-    console.log('[AT stub] createSchema');
+
+  createSession: async function(fields) {
+    const data = await this._fetch(this._baseUrl() + '/SESSIONS', {
+      method: 'POST',
+      body: JSON.stringify({ fields })
+    });
+    return { id: data.id };
+  },
+
+  patchSession: async function(recordId, fields) {
+    const data = await this._fetch(this._baseUrl() + '/SESSIONS/' + recordId, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields })
+    });
+    return { id: data.id };
+  },
+
+  getDraftSessions: async function() {
+    const data = await this._fetch(
+      this._baseUrl() + '/SESSIONS?filterByFormula=' + encodeURIComponent("{Sync_Status}='Draft'")
+    );
+    return data.records || [];
+  },
+
+  createWeeklyMetric: async function(fields) {
+    const data = await this._fetch(this._baseUrl() + '/WEEKLY_METRICS', {
+      method: 'POST',
+      body: JSON.stringify({ fields })
+    });
+    return { id: data.id };
+  },
+
+  createMilestone: async function(fields) {
+    const data = await this._fetch(this._baseUrl() + '/MILESTONES', {
+      method: 'POST',
+      body: JSON.stringify({ fields })
+    });
+    return { id: data.id };
+  },
+
+  createSchema: async function() {
+    const baseId = StorageService.getBaseId();
+    const metaUrl = APP_CONFIG.AT_META + '/' + baseId + '/tables';
+
+    // Helper to build a single-select field definition
+    const singleSelect = (name, choices, desc) => ({
+      name, type: 'singleSelect',
+      description: desc || '',
+      options: { choices: choices.map(c => ({ name: c })) }
+    });
+    const multiSelect = (name, choices, desc) => ({
+      name, type: 'multipleSelects',
+      description: desc || '',
+      options: { choices: choices.map(c => ({ name: c })) }
+    });
+    const text = (name, desc) => ({ name, type: 'singleLineText', description: desc || '' });
+    const num  = (name, desc) => ({ name, type: 'number', description: desc || '', options: { precision: 2 } });
+    const date = (name) => ({ name, type: 'date', options: { dateFormat: { name: 'iso' } } });
+    const check = (name) => ({ name, type: 'checkbox', options: { icon: 'check', color: 'greenBright' } });
+
+    const fd = APP_CONFIG.FIELD_DESCRIPTIONS;
+    const fieldDesc = (key) => {
+      const d = fd[key];
+      return d ? d.what + ' | ' + d.why : '';
+    };
+
+    const SESSIONS_FIELDS = [
+      date('Date'),
+      singleSelect('Session_Type', APP_CONFIG.FIELDS.Session_Type),
+      singleSelect('Program_Week', APP_CONFIG.FIELDS.Program_Week),
+      singleSelect('Time_Slot', APP_CONFIG.FIELDS.Time_Slot),
+      singleSelect('Entry_State', APP_CONFIG.FIELDS.Entry_State, fieldDesc('Entry_State')),
+      singleSelect('Recovery_Quality', APP_CONFIG.FIELDS.Recovery_Quality, fieldDesc('Recovery_Quality')),
+      singleSelect('Completion_Level', APP_CONFIG.FIELDS.Completion_Level, fieldDesc('Completion_Level')),
+      multiSelect('Phases_Completed', ['Phase 1 Breathing','Phase 2 Scapular','Phase 3 Lower Body','Phase 4 Power']),
+      check('Tonight_Mode_Used'),
+      singleSelect('Knee_Pain', APP_CONFIG.FIELDS.Knee_Pain, fieldDesc('Knee_Pain')),
+      singleSelect('Session_Confidence', APP_CONFIG.FIELDS.Session_Confidence, fieldDesc('Session_Confidence')),
+      singleSelect('Body_Awareness', APP_CONFIG.FIELDS.Body_Awareness, fieldDesc('Body_Awareness')),
+      singleSelect('Breathing_Pattern', APP_CONFIG.FIELDS.Breathing_Pattern, fieldDesc('Breathing_Pattern')),
+      singleSelect('TVA_Engagement', APP_CONFIG.FIELDS.TVA_Engagement, fieldDesc('TVA_Engagement')),
+      singleSelect('Movement_Quality', APP_CONFIG.FIELDS.Movement_Quality, fieldDesc('Movement_Quality')),
+      singleSelect('Posterior_Chain', APP_CONFIG.FIELDS.Posterior_Chain),
+      singleSelect('Sync_Status', ['Draft','Complete']),
+      // Hockey
+      singleSelect('Edge_Commitment', APP_CONFIG.FIELDS.Edge_Commitment, fieldDesc('Edge_Commitment')),
+      singleSelect('Push_Completion', APP_CONFIG.FIELDS.Push_Completion, fieldDesc('Push_Completion')),
+      singleSelect('Right_Leg_Load', APP_CONFIG.FIELDS.Right_Leg_Load),
+      singleSelect('Stride_Length_Feel', APP_CONFIG.FIELDS.Stride_Length_Feel),
+      singleSelect('Skating_Fatigue', APP_CONFIG.FIELDS.Skating_Fatigue),
+      singleSelect('On_Ice_Duration', APP_CONFIG.FIELDS.On_Ice_Duration),
+      // Golf
+      singleSelect('Hip_Clearance', APP_CONFIG.FIELDS.Hip_Clearance, fieldDesc('Hip_Clearance')),
+      singleSelect('Spine_Angle', APP_CONFIG.FIELDS.Spine_Angle),
+      singleSelect('Trail_Leg_Load', APP_CONFIG.FIELDS.Trail_Leg_Load),
+      singleSelect('Ball_Flight', APP_CONFIG.FIELDS.Ball_Flight),
+      singleSelect('Distance_vs_Normal', APP_CONFIG.FIELDS.Distance_vs_Normal),
+      singleSelect('Golf_Format', APP_CONFIG.FIELDS.Golf_Format),
+      singleSelect('Pre_Shot_Breath', APP_CONFIG.FIELDS.Pre_Shot_Breath, fieldDesc('Pre_Shot_Breath'))
+    ];
+
+    const WEEKLY_FIELDS = [
+      num('Program_Week'),
+      date('Date'),
+      singleSelect('Program_Stage', ['Baseline','Wk 1–3 Neuromuscular','Wk 4–6 Strength','Wk 7–12 Power','Beyond Wk 12']),
+      num('Bodyweight'), num('Quad_Right'), num('Quad_Left'),
+      num('Balance_Right'), num('Balance_Left'),
+      num('Split_Squat_Load'), num('Skater_Bound'),
+      num('Glide_Right'), num('Glide_Left'),
+      singleSelect('Knee_Pain_Trend', ['Improving','Stable','Worsening','Resolved']),
+      singleSelect('Progress_Feel', ['Regressing','Stalled','Gradual','Clear','Significant'])
+    ];
+
+    const MILESTONE_FIELDS = [
+      singleSelect('Milestone_Name', APP_CONFIG.MILESTONE_NAMES),
+      date('Date_Achieved'),
+      num('Program_Week'),
+      singleSelect('Session_Type', APP_CONFIG.FIELDS.Session_Type),
+      singleSelect('Schedule_Status', ['Significantly early','Slightly early','On track','Slightly late','Significantly late'])
+    ];
+
+    const tables = [
+      { name: 'SESSIONS', fields: SESSIONS_FIELDS },
+      { name: 'WEEKLY_METRICS', fields: WEEKLY_FIELDS },
+      { name: 'MILESTONES', fields: MILESTONE_FIELDS }
+    ];
+
+    // Create tables sequentially — Airtable Metadata API requires name field first
+    for (const table of tables) {
+      await this._fetch(metaUrl, {
+        method: 'POST',
+        body: JSON.stringify({ name: table.name, fields: table.fields })
+      });
+    }
     return true;
   }
 };
