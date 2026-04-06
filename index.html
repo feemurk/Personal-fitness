@@ -3061,9 +3061,13 @@ const App = {
     const sheetOpt = e.target.closest('.sheet-option');
     if (sheetOpt) { UI.BottomSheet.handleSelect(sheetOpt.dataset.value); return; }
 
+    // Learn sub-nav (must be before nav check — learn-btn has no data-panel)
+    const learnBtn = e.target.closest('[data-learn]');
+    if (learnBtn) { UI.Learn.show(learnBtn.dataset.learn); return; }
+
     // Nav
     const navBtn = e.target.closest('[data-panel]');
-    if (navBtn && !navBtn.closest('.learn-subnav')) { UI.Nav.show(navBtn.dataset.panel); return; }
+    if (navBtn) { UI.Nav.show(navBtn.dataset.panel); return; }
 
     // Exercise accordion
     const toggle = e.target.closest('[data-toggle]');
@@ -3101,14 +3105,15 @@ const App = {
       case 'setup-test': UI.Setup.handleTest(); break;
       case 'setup-done': UI.Setup.done(); break;
       case 'setup-back-to-creds': UI.Setup._goStep(2); break;
-      case 'debug-test':
+      case 'debug-test': {
         const dbgResult = document.getElementById('dbg-result');
         dbgResult.style.color = 'var(--text-dim)';
         dbgResult.textContent = 'Testing…';
         AirtableService.testConnection()
           .then(() => { dbgResult.style.color = 'var(--green)'; dbgResult.textContent = '✓ Connection OK'; })
-          .catch(e => { dbgResult.style.color = 'var(--amber)'; dbgResult.textContent = '✗ ' + e.message; });
+          .catch(err => { dbgResult.style.color = 'var(--amber)'; dbgResult.textContent = '✗ ' + err.message; });
         break;
+      }
       case 'clear-all-data':
         if (confirm('Clear ALL local data including credentials? This cannot be undone.')) {
           localStorage.clear();
@@ -3122,10 +3127,6 @@ const App = {
     if (logRow && !e.target.closest('.field-info-btn')) {
       UI.Log.openSheet(logRow.dataset.field);
     }
-
-    // Learn sub-nav
-    const learnBtn = e.target.closest('[data-learn]');
-    if (learnBtn) { UI.Learn.show(learnBtn.dataset.learn); return; }
   },
 
   _handleMouseEnter: function(e) {
