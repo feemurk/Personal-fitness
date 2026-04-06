@@ -2865,7 +2865,7 @@ UI.Setup = {
     } else if (n === 2) {
       label.textContent = 'Step 2 of 5';
       title.textContent = 'Personal Access Token';
-      desc.textContent = 'Go to airtable.com/create/tokens and create a token with data.records:read, data.records:write, and schema.bases:write scopes.';
+      desc.textContent = 'Go to airtable.com/create/tokens and create a token with these 4 scopes: data.records:read, data.records:write, schema.bases:read, schema.bases:write. Restrict it to your fitness-tracker base.';
       const inp = document.createElement('input');
       inp.type = 'password'; inp.className = 'setup-input'; inp.id = 'setup-pat-input';
       inp.placeholder = 'pat_...';
