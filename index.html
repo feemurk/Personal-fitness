@@ -1774,6 +1774,7 @@ body.sheet-open { overflow: hidden; }
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
           <button class="settings-action-btn" data-action="run-setup">Configure Airtable</button>
           <button class="settings-danger-btn" data-action="clear-credentials">Clear credentials</button>
+          <button class="settings-danger-btn" data-action="clear-all-data">Reset everything</button>
         </div>
       </div>
 
@@ -2841,10 +2842,19 @@ UI.Setup = {
     const card = document.querySelector('.setup-card');
     status.textContent = '';
     status.className = 'setup-status';
+    btn.disabled = false;
 
-    // Remove any previous input
-    const old = card.querySelector('.setup-input');
-    if (old) old.remove();
+    // Remove previous input + back button
+    card.querySelectorAll('.setup-input, .setup-back-btn').forEach(el => el.remove());
+
+    const addBack = (toStep) => {
+      const back = document.createElement('button');
+      back.className = 'setup-back-btn';
+      back.textContent = '← Back';
+      back.style.cssText = 'background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;padding:8px 0;margin-top:8px;display:block;';
+      back.addEventListener('click', () => this._goStep(toStep));
+      btn.after(back);
+    };
 
     if (n === 1) {
       label.textContent = 'Step 1 of 5';
@@ -2859,19 +2869,25 @@ UI.Setup = {
       const inp = document.createElement('input');
       inp.type = 'password'; inp.className = 'setup-input'; inp.id = 'setup-pat-input';
       inp.placeholder = 'pat_...';
+      inp.value = this._pat || '';
       desc.after(inp);
+      setTimeout(() => inp.focus(), 50);
       btn.textContent = 'Next';
       btn.dataset.action = 'setup-next';
+      addBack(1);
     } else if (n === 3) {
       label.textContent = 'Step 3 of 5';
       title.textContent = 'Base ID';
-      desc.textContent = 'Open your Airtable base, go to Help → API documentation. The Base ID starts with "app".';
+      desc.textContent = 'From your Airtable base URL: airtable.com/appXXXXXX/... — copy the part starting with "app". Or: Help → API documentation.';
       const inp = document.createElement('input');
       inp.type = 'text'; inp.className = 'setup-input'; inp.id = 'setup-base-input';
-      inp.placeholder = 'app...';
+      inp.placeholder = 'appXXXXXXXXXXXXXX';
+      inp.value = this._baseId || '';
       desc.after(inp);
+      setTimeout(() => inp.focus(), 50);
       btn.textContent = 'Test Connection';
       btn.dataset.action = 'setup-test';
+      addBack(2);
     } else if (n === 4) {
       label.textContent = 'Step 4 of 5';
       title.textContent = 'Creating Schema';
@@ -2879,6 +2895,7 @@ UI.Setup = {
       btn.textContent = 'Continue';
       btn.disabled = true;
       btn.dataset.action = 'setup-next';
+      addBack(3);
       this._doSetup();
     } else if (n === 5) {
       label.textContent = 'Step 5 of 5';
@@ -2911,7 +2928,11 @@ UI.Setup = {
       document.getElementById('setup-status').className = 'setup-status error';
       return;
     }
-    this._baseId = val.value.trim();
+    let baseId = val.value.trim();
+    // Strip full URL if pasted — extract just the appXXX segment
+    const match = baseId.match(/(app[a-zA-Z0-9]+)/);
+    if (match) baseId = match[1];
+    this._baseId = baseId;
     StorageService.setCredentials(this._pat, this._baseId);
     this._goStep(4);
   },
@@ -2930,8 +2951,8 @@ UI.Setup = {
       status.textContent = 'Error: ' + (e.message || 'Could not connect. Check your PAT and Base ID.');
       status.className = 'setup-status error';
       btn.disabled = false;
-      btn.textContent = 'Skip (use offline)';
-      btn.dataset.action = 'setup-done';
+      btn.textContent = 'Try again';
+      btn.dataset.action = 'setup-back-to-creds';
     }
   },
 
@@ -3055,6 +3076,13 @@ const App = {
       case 'setup-next': UI.Setup.handleNext(); break;
       case 'setup-test': UI.Setup.handleTest(); break;
       case 'setup-done': UI.Setup.done(); break;
+      case 'setup-back-to-creds': UI.Setup._goStep(2); break;
+      case 'clear-all-data':
+        if (confirm('Clear ALL local data including credentials? This cannot be undone.')) {
+          localStorage.clear();
+          location.reload();
+        }
+        break;
     }
 
     // Log field row tap (anywhere on the row, not just the arrow)
