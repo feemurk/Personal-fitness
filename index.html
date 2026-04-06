@@ -3082,8 +3082,7 @@ const App = {
     if (btn && UI.FieldInfo._mode === 'hover') {
       UI.FieldInfo.hide();
     }
-  }
-};
+  },
 
   _syncFromAirtable: async function() {
     try {
@@ -3094,7 +3093,6 @@ const App = {
         const f = r.fields;
         const week = String(f.Program_Week != null ? f.Program_Week : '');
         if (!week) return;
-        // Only overwrite if localStorage has no entry for this week
         if (!metrics[week]) {
           metrics[week] = {
             qr: f.Quad_Right || null, ql: f.Quad_Left || null,
@@ -3108,21 +3106,15 @@ const App = {
       StorageService.setWeeklyMetrics(metrics);
       UI.Progress.renderHistory();
       UI.Progress.renderSparklines();
-    } catch(e) {
-      // Silent — offline or unconfigured
-    }
+    } catch(e) {}
 
-    // Also check for draft sessions from other devices
     try {
       const drafts = await AirtableService.getDraftSessions();
       if (drafts.length && !StorageService.getDraftSession()) {
         const r = drafts[0];
         StorageService.setDraftSession({
-          state: 'ACTIVE',
-          recordId: r.id,
-          ticked: [],
-          phases: (r.fields.Phases_Completed || []),
-          updatedAt: Date.now()
+          state: 'ACTIVE', recordId: r.id, ticked: [],
+          phases: (r.fields.Phases_Completed || []), updatedAt: Date.now()
         });
         UI.ResumeBanner.show(StorageService.getDraftSession());
       }
