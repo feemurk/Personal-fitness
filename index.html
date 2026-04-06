@@ -2259,8 +2259,12 @@ const AirtableService = {
       { name: 'MILESTONES', fields: MILESTONE_FIELDS }
     ];
 
-    // Create tables sequentially — Airtable Metadata API requires name field first
+    // Fetch existing tables — skip creation for any that already exist (idempotent across browsers)
+    const existing = await this._fetch(metaUrl);
+    const existingNames = new Set((existing.tables || []).map(t => t.name));
+
     for (const table of tables) {
+      if (existingNames.has(table.name)) continue;
       await this._fetch(metaUrl, {
         method: 'POST',
         body: JSON.stringify({ name: table.name, fields: table.fields })
@@ -2966,10 +2970,10 @@ UI.Setup = {
     const btn = document.getElementById('setup-next-btn');
     try {
       await AirtableService.testConnection();
-      status.textContent = 'Connection successful. Creating tables…';
+      status.textContent = 'Connection successful. Verifying tables…';
       status.className = 'setup-status success';
       await AirtableService.createSchema();
-      status.textContent = 'Schema created successfully.';
+      status.textContent = 'All set — tables verified.';
       btn.disabled = false;
     } catch(e) {
       status.textContent = 'Error: ' + (e.message || 'Could not connect. Check your PAT and Base ID.');
