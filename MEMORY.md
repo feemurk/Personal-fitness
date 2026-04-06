@@ -14,9 +14,10 @@ Update it after significant sessions, new user disclosures, or protocol changes.
 - **Quad atrophy**: Right leg quad circumference reduced; symmetry is a key recovery metric
 - **Brief physio history**: Some prior professional involvement, not ongoing
 - **Equipment at home**: Resistance bands (primary), step, 10lb kettlebell, some dumbbells
+- **Units**: lbs and inches (not metric)
 
 ### Sports Context
-- **Hockey**: Recreational/fitness-focused. Key frustrations: speed/confidence on edge (issues #1, #3, #4 from original survey). Skating push power compromised by right leg weakness and knee compensation.
+- **Hockey**: Recreational/fitness-focused. Key frustrations: speed/confidence on edge, skating push power compromised by right leg weakness and knee compensation.
 - **Golf**: Left-handed. Mini driver: 230–240 yards. 7-iron: 140–150 yards with natural fade. Handicap: 10–13. Swing mechanics directly affected by pelvic tilt and restricted hip rotation.
 - **On-ice**: Actively skating. Working on glide efficiency, stride length, single-leg balance time.
 
@@ -32,32 +33,40 @@ Update it after significant sessions, new user disclosures, or protocol changes.
 
 ---
 
-## Program Architecture Decisions
+## App Architecture (v3 — current as of April 2026)
 
-### Two-Tool System (established March 7, 2026)
-- **`index.html`** = Execution environment. Mobile home screen app. Checklist, Tonight Mode, confidence rating, exercise cues. Used *during* sessions.
-- **Notion** = Reflection + knowledge environment. Session log, deep content pages, resource library, weekly review. Used *between* sessions. HTML embeds inside Notion via iframe.
+### Single-file App with Airtable Backend
+- **`index.html`** — the only file. All CSS + JS inline. No build step, no framework.
+- **Airtable** — persistent backend for sessions, weekly metrics, milestones. 2-way sync.
+- Replaces the previous Notion + HTML two-tool system entirely.
+- Works as a PWA — add to home screen, works offline (localStorage buffer).
 
-**Rationale**: Execution mode and reflection mode are different mental states. Conflating them is why Notion was abandoned previously. Keeping jobs separate protects both tools.
+### Navigation
+- **Mobile**: Bottom nav — Today · Log · Progress · Learn · Settings
+- **Desktop**: Left rail + content area
 
-### Notion Architecture (designed March 7, 2026)
-- Hub page → 4 sub-pages:
-  1. Session Log (database, 60-second entry: date, pain, confidence, one sentence)
-  2. Knowledge Base (Hockey page + Golf page + Injury deep-dives)
-  3. Resource Library (YouTube, drill clips, LLM chats, articles — tagged, searchable)
-  4. Weekly Review (one prompt, one metric snapshot, ~5 minutes)
-- Implementation guide: `inputs/notion-setup.docx`
+### JS Architecture (IIFE, 6 modules)
+- `APP_CONFIG` — field options, FIELD_DESCRIPTIONS, PHASE_EXERCISES, constants
+- `StorageService` — localStorage (credentials, draft session, theme, metrics, milestones)
+- `AirtableService` — all API calls (SESSIONS, WEEKLY_METRICS, MILESTONES tables)
+- `SessionMachine` — IDLE → STARTING → ACTIVE → LOGGING → SAVING → COMPLETE
+- `UI` — Nav, Today, Log, Progress, Learn, Settings, Snackbar, BottomSheet, FieldInfo, ResumeBanner, Setup
+- `App` — init(), event delegation via data-* attributes (no onclick= anywhere)
 
-### HTML App Features (as of v2, March 7, 2026)
-- 6 tabs: Program, Golf, On Ice, Progress, Milestones, Gear
-- Tonight Mode: 3-exercise minimum, low-stakes re-entry, accessible from header
-- Witness cues on each exercise (what to observe, not just do)
-- Milestones as acknowledgements (not goals to chase)
-- Confidence pip scale (1–10)
-- localStorage persistence for session data
-- CSV export for Excel
-- Dark default / light toggle, WCAG AAA
-- Band-primary exercises, home equipment only
+### Airtable Setup
+- **Base**: fitness-tracker (Workspace 2)
+- **Base ID**: app1kMd9ytcLcS09C
+- **Token**: stored in localStorage as AT_PAT — never in code, never in git
+- **Required scopes**: data.records:read, data.records:write, schema.bases:read, schema.bases:write
+- **Tables**: SESSIONS, WEEKLY_METRICS, MILESTONES — auto-created by app on first launch
+- **Primary field rule**: Each table's first field must be plain text (Name) — Airtable requirement
+
+### Key UX Rules
+- Tonight Mode must always be reachable in one tap from Today tab
+- Log tab uses bottom sheets only — no keyboard input during sweaty sessions
+- Sport-specific Log fields (Hockey / Golf) only appear when matching Session_Type selected
+- All Airtable errors are silent-with-snackbar — app never crashes offline
+- localStorage is always written first; Airtable is async best-effort
 
 ---
 
@@ -69,12 +78,13 @@ Update it after significant sessions, new user disclosures, or protocol changes.
 3. **Lower Body Strength & Knee Alignment** (15–20 min): Bulgarian split squats, Spanish squats, Lateral step downs
 4. **Hip Control & Skating Power** (10 min): Golf driver lateral chain push, Banded monster walks, Lateral skater bounds, Single-leg RDL
 
-### Tracking Metrics
-- Quad circumference (right vs left, measured 6" above kneecap)
-- Single-leg balance time (per leg)
-- Bulgarian split squat load
-- Skater bound distance
-- One-leg glide time on ice
+### Tracking Metrics (units: lbs / inches)
+- Quad circumference right vs left (inches, 6" above kneecap)
+- Single-leg balance time (seconds, per leg)
+- Split squat load (lbs per hand)
+- Skater bound distance (inches)
+- One-leg glide time on ice (seconds)
+- Bodyweight (lbs)
 - Knee pain level (0–10)
 - Session confidence (1–10, subjective)
 
@@ -93,36 +103,24 @@ Update it after significant sessions, new user disclosures, or protocol changes.
 
 ## Session History
 
-### March 7, 2026 (source chat)
+### March 7, 2026
 - Initial program build session
-- Rehab plan constructed from scratch based on original exercise list
 - v1 HTML built (impersonal tone, rejected)
 - User profiling completed — key insight: introspective/proprioceptive motivation, night training, recede pattern
 - v2 HTML rebuilt with witness cues, tonight mode, quieter tone
 - Notion architecture designed and approved
-- Word document with full Notion setup + Hockey knowledge page + Golf knowledge page created
 
-### April 5, 2026 (current session)
-- User requested: CLAUDE.md (session protocol, testing gate, Feynman+Karpathy refinement model)
-- User requested: MEMORY.md (persistent profile + project history)
-- User requested: Skill commands — hockey, golf, body-movement, breathwork specializations
-- Design decision pending: skills vs CLAUDE.md for domain intelligence (see Recommendation below)
+### April 5, 2026
+- CLAUDE.md, MEMORY.md, and skill commands (hockey, golf, body-movement, breathwork) created
+- Two-tool system (HTML + Notion) established
 
----
-
-## Open Decisions & Recommendations
-
-### Skills vs. CLAUDE.md for Domain Intelligence
-
-**Recommendation: Use skills (slash commands), not CLAUDE.md.**
-
-CLAUDE.md is always-on context — it loads every session whether or not that session involves hockey mechanics. Keeping it lean makes every session faster and more focused.
-
-Domain skills (hockey, golf, body movement, breathwork) carry deep, specialized knowledge that would make CLAUDE.md unwieldy. More importantly, that depth is only needed situationally — when analyzing a stride, designing a drill, or diagnosing a breathing pattern.
-
-Slash commands (`/hockey`, `/golf`, `/body-movement`, `/breathwork`) are invoked when needed, allow focused domain reasoning, and can be updated independently as knowledge deepens.
-
-**Hybrid exception**: CLAUDE.md keeps a one-paragraph domain summary (context anchors) so any session has enough baseline to be useful. The skills go deep when invoked.
+### April 2026 (v3 rebuild session)
+- Full rewrite of index.html — v3 Airtable rebuild
+- Replaced Notion entirely — app is now the single tool for execution, logging, knowledge, and review
+- Airtable backend connected: 3 tables auto-created on first launch
+- 8 implementation phases completed across multiple PRs
+- Key bugs fixed: _syncFromAirtable outside App object (broke all JS), setup overlay back navigation, Base ID URL parsing, Airtable primary field type requirement, testConnection endpoint correction
+- App confirmed working end-to-end with real Airtable credentials
 
 ---
 
@@ -134,3 +132,5 @@ Slash commands (`/hockey`, `/golf`, `/body-movement`, `/breathwork`) are invoked
 4. Tonight Mode is the most important single feature in the app. Protect it in every iteration.
 5. Both sports are deeply integrated with the same postural system — any TVA/breathing/serratus work has direct carry-over to both skating and golf swing. Lead with this connection when explaining exercises.
 6. The left-handed fade in golf is a stable, natural pattern — do not try to fix it. Build strength and stability around it.
+7. Units are lbs and inches — never metric.
+8. The app is a single HTML file by design — no build step, no split files. This is a hard constraint, not a preference.
