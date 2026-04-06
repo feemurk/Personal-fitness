@@ -1783,6 +1783,17 @@ body.sheet-open { overflow: hidden; }
         <button class="settings-action-btn" data-action="export-csv" style="display:block;width:100%;margin-bottom:8px;">↓ Export CSV</button>
       </div>
 
+      <div class="settings-section">
+        <span class="settings-label">Debug</span>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);line-height:1.8;word-break:break-all;">
+          <div>Base ID: <span id="dbg-base" style="color:var(--accent)">—</span></div>
+          <div>PAT set: <span id="dbg-pat" style="color:var(--accent)">—</span></div>
+          <div>Test URL: <span id="dbg-url" style="color:var(--accent)">—</span></div>
+        </div>
+        <button class="settings-action-btn" style="margin-top:8px;width:100%;" data-action="debug-test">Test connection now</button>
+        <div id="dbg-result" style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:13px;min-height:20px;"></div>
+      </div>
+
       <div class="bottom-note" style="margin-top:40px;">
         v3.0 · feat/v3-airtable-rebuild<br>
         Built for one athlete. Works for you.
@@ -2799,6 +2810,16 @@ UI.Settings = {
   init: function() {
     const el = document.getElementById('settings-connection-status');
     if (el) el.textContent = StorageService.isConfigured() ? 'Connected' : 'Not configured';
+    // Populate debug panel
+    const baseId = StorageService.getBaseId() || '(not set)';
+    const pat = StorageService.getPAT();
+    const testUrl = APP_CONFIG.AT_META + '/' + (StorageService.getBaseId() || '???') + '/tables';
+    const dbgBase = document.getElementById('dbg-base');
+    const dbgPat = document.getElementById('dbg-pat');
+    const dbgUrl = document.getElementById('dbg-url');
+    if (dbgBase) dbgBase.textContent = baseId;
+    if (dbgPat) dbgPat.textContent = pat ? 'pat_...' + pat.slice(-6) : '(not set)';
+    if (dbgUrl) dbgUrl.textContent = testUrl;
   },
   applyTheme: function(theme) {
     const btn = document.getElementById('theme-toggle-btn');
@@ -3077,6 +3098,14 @@ const App = {
       case 'setup-test': UI.Setup.handleTest(); break;
       case 'setup-done': UI.Setup.done(); break;
       case 'setup-back-to-creds': UI.Setup._goStep(2); break;
+      case 'debug-test':
+        const dbgResult = document.getElementById('dbg-result');
+        dbgResult.style.color = 'var(--text-dim)';
+        dbgResult.textContent = 'Testing…';
+        AirtableService.testConnection()
+          .then(() => { dbgResult.style.color = 'var(--green)'; dbgResult.textContent = '✓ Connection OK'; })
+          .catch(e => { dbgResult.style.color = 'var(--amber)'; dbgResult.textContent = '✗ ' + e.message; });
+        break;
       case 'clear-all-data':
         if (confirm('Clear ALL local data including credentials? This cannot be undone.')) {
           localStorage.clear();
