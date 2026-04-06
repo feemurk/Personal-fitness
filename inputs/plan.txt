@@ -1,0 +1,319 @@
+Context
+The current index.html is a 1874-line mobile-only execution app with no data persistence beyond a theme preference. All progress data lives in a session-scoped store object and is lost on page close.
+The user wants to:
+
+Replace Notion entirely — the HTML app becomes the one-stop tool for execution, data logging, knowledge, and review
+Add Airtable as the persistent backend (2-way sync)
+Add a responsive desktop layout (review/knowledge mode)
+Redesign the data model to be analytics-ready — structured selectable fields, no open text, domain-specific values informed by all four skill domains (hockey, golf, body-movement, breathwork)
+Enable async session saving so sessions can be paused and resumed
+
+Units: lbs / inches. Desktop view: session history table + sparklines (trend lines for pain, confidence, key metrics — no heavy charts, Airtable native reports handle deeper analytics).
+
+Critical Files
+
+/home/user/Personal-fitness/index.html — single file, full rewrite
+/home/user/Personal-fitness/CLAUDE.md — coding standards, test gate
+/home/user/Personal-fitness/MEMORY.md — user profile and psychological context
+
+
+Architecture Decisions
+Single file
+Stay as index.html. No build step, no split files. All CSS + JS inline.
+JS Structure
+Wrap all JS in one top-level IIFE. Internal module objects:
+
+APP_CONFIG — constants, field option arrays, API URLs
+StorageService — localStorage read/write (credentials, draft session, theme)
+AirtableService — all API calls (create/patch/fetch for all 3 tables)
+SessionMachine — session state machine (IDLE → STARTING → ACTIVE → LOGGING → SAVING → COMPLETE)
+UI — namespaced sub-objects: Nav, Today, Log, Progress, Learn, Settings, Snackbar, BottomSheet, ResumeBanner, Setup
+App — init() entry point, wires everything together
+
+No onclick= attributes in HTML. All event listeners attached in App.init() via data-* attributes.
+CSS Structure
+Keep all existing CSS custom properties verbatim. Add:
+
+App shell layout (.app-shell, .content-area)
+Bottom nav CSS (mobile, < 768px)
+Left rail CSS (desktop, @media (min-width: 768px))
+New UI primitives: FAB, Bottom Sheet, Snackbar, Resume Banner, Setup Overlay
+Replace .tabs-wrap/.tab-btn/.panel with new nav + panel structure
+
+Security
+Airtable PAT + Base ID stored in localStorage only. Entered once via first-launch setup screen. Never in code, never in git. config.example.js is not needed — setup is fully in-app.
+
+Airtable Schema
+Table 1: SESSIONS
+One record per workout, on-ice, or golf session.
+FieldTypeOptionsNameFormula{Date} & " — " & {Session_Type}DateDate—Session_TypeSingle SelectStrength & Rehab, On-Ice Hockey, Golf Range, Golf Round, Recovery OnlyProgram_WeekSingle Select0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12+Time_SlotSingle SelectMorning (<9am), Midday (9–2pm), Afternoon (2–6pm), Evening (6–9pm), Late Night (9pm+)Entry_StateSingle SelectEnergized, Neutral, Mildly Fatigued, Fatigued, Depleted/High StressRecovery_QualitySingle SelectPoor, Below Average, Moderate, Good, ExcellentCompletion_LevelSingle SelectFull Session, Tonight Mode Only, Partial Ph1, Partial Ph1+2, Partial Ph1-3, SkippedPhases_CompletedMulti SelectPhase 1 Breathing, Phase 2 Scapular, Phase 3 Lower Body, Phase 4 PowerTonight_Mode_UsedCheckbox—Knee_PainSingle Select0 — None, 1, 2, 3 — Noticeable, 4, 5 — Significant, 6, 7, 8 — Severe, 9, 10Session_ConfidenceSingle Select1, 2, 3, 4, 5, 6, 7, 8, 9, 10Body_AwarenessSingle SelectNot present, Brief contact, Intermittent, Sustained, Full witness modeBreathing_PatternSingle SelectChest dominant, Mixed, Consistent 360°, Natural 360° automaticTVA_EngagementSingle SelectNot felt, Breathing phases only, During exercises, Consistent throughoutMovement_QualitySingle SelectCompensation dominant, Mixed, Mostly clean, Clean throughoutPosterior_ChainSingle SelectNot accessed, Intermittent, Consistent, StrongSync_StatusSingle SelectDraft, CompleteHockey fields (conditional)Edge_CommitmentSingle Select1 Center-biased, 2, 3 Full outside edge, 4, 5 Deep aggressivePush_CompletionSingle Select1 Pulling early, 2, 3 Full extension, 4, 5 Extension + glide holdRight_Leg_LoadSingle Select1 Avoided, 2 Compensating, 3 Moderate, 4 Strong, 5 SymmetricStride_Length_FeelSingle Select1 Short/choppy, 2, 3 Extended, 4, 5 Long and powerfulSkating_FatigueSingle SelectImmediate, First half, Second half, Late skate, Held throughoutOn_Ice_DurationSingle SelectUnder 30 min, 30–45 min, 45–60 min, 60–90 min, 90 min+Golf fields (conditional)Hip_ClearanceSingle Select1 Blocked, 2, 3 On time, 4, 5 Full rotationSpine_AngleSingle Select1 Lost early, 2, 3 Maintained to impact, 4, 5 Full finishTrail_Leg_LoadSingle Select1 Avoided, 2 Minimal, 3 Appropriate, 4, 5 OverloadedBall_FlightSingle SelectLeft pull, Straight, Natural fade, Push, Push fadeDistance_vs_NormalSingle SelectWell below, Slightly below, Normal, Slightly above, Well aboveGolf_FormatSingle SelectRange short game, Range full swing, Range mixed, 9 holes, 18 holesPre_Shot_BreathSingle SelectNot used, Sometimes, Most shots, Every shot
+Table 2: WEEKLY_METRICS
+One record per week. Objective measurements.
+FieldTypeNotesWeekNumber0–12+DateDate—Program_StageSingle SelectBaseline, Wk 1–3 Neuromuscular, Wk 4–6 Strength, Wk 7–12 Power, Beyond Wk 12BodyweightNumberlbsQuad_RightNumberinchesQuad_LeftNumberinchesQuad_DeltaFormulaABS({Quad_Left} - {Quad_Right})Balance_RightNumbersecondsBalance_LeftNumbersecondsSplit_Squat_LoadNumberlbsSkater_BoundNumberinchesGlide_RightNumbersecondsGlide_LeftNumbersecondsKnee_Pain_TrendSingle SelectImproving, Stable, Worsening, ResolvedProgress_FeelSingle SelectRegressing, Stalled, Gradual, Clear, Significant
+Table 3: MILESTONES
+One record per milestone reached. Event log.
+FieldTypeNotesMilestone_NameSingle SelectAll 14 milestone names from current appDate_AchievedDate—Program_WeekNumber—Session_TypeSingle SelectSame options as SESSIONS.Session_TypeSchedule_StatusSingle SelectSignificantly early, Slightly early, On track, Slightly late, Significantly late
+
+Field Description Schema & Info Tooltip
+Purpose
+Each selectable field in the Log tab carries a machine-readable description — what the field measures, why it matters to this program, and how to pick the right value. This data serves two jobs:
+
+Airtable: populated as the description property on each field via the Metadata API at setup time (visible in Airtable's field configuration)
+Frontend: rendered in a tooltip triggered by an info button (ⓘ) on every Log field row
+
+Data Structure in APP_CONFIG
+javascriptAPP_CONFIG.FIELD_DESCRIPTIONS = {
+  Entry_State: {
+    what: 'Your energy and mental state at session start.',
+    why: 'Correlates session quality with baseline state — helps identify whether low-energy sessions still produce value over time.',
+    options: {
+      'Energized':          'Physically ready, awake, willing. Rare for late-night training but log it when true.',
+      'Neutral':            'Neither fresh nor spent. Default for most weekday evenings.',
+      'Mildly Fatigued':    'Tired from the day but functional. Most common honest state. Tonight Mode starts here.',
+      'Fatigued':           'Significantly low energy. You showed up anyway. This data is valuable — log it honestly.',
+      'Depleted/High Stress': 'Running on empty: poor sleep + high stress + demanding day. Tonight Mode or recovery only is appropriate.'
+    }
+  },
+  Recovery_Quality: {
+    what: 'Sleep quality and systemic recovery going into this session.',
+    why: 'Poor recovery + training load = higher injury risk and slower adaptation. Tracking this surfaces patterns in your readiness.',
+    options: {
+      'Poor':          'Fewer than 5 hours sleep, high stress, or multiple consecutive training days with no rest.',
+      'Below Average': 'Disrupted sleep or moderate fatigue carrying over from previous days.',
+      'Moderate':      'Adequate sleep (6–7 hours), manageable stress. Typical baseline.',
+      'Good':          'Solid sleep (7–8 hours), low stress, at least one rest day prior.',
+      'Excellent':     'Full rest, 8+ hours sleep, low life stress. Rate this honestly — it anchors your performance ceiling.'
+    }
+  },
+  Body_Awareness: {
+    what: 'Quality of proprioceptive and interoceptive engagement during the session.',
+    why: 'Witness mode — observing the body from outside while it moves — is the primary engagement mechanism for this athlete. Tracking this shows whether fatigue and stress erode it over time.',
+    options: {
+      'Not present':       'Going through motions. No internal observation. Session was mechanical.',
+      'Brief contact':     '1–2 moments where you noticed something real. Still counts.',
+      'Intermittent':      'In and out of awareness. Present for some exercises, absent for others.',
+      'Sustained':         'Body awareness present for most of the session. Could observe movement quality in real time.',
+      'Full witness mode': 'Dissociative awareness active — body moving, you observing and adjusting from outside. This is the target state.'
+    }
+  },
+  Breathing_Pattern: {
+    what: 'Dominant breathing pattern observed during the session.',
+    why: 'Chest-dominant breathing inhibits TVA, reduces IAP, and reinforces rib flare. Tracking this over weeks shows whether Phase 1 work is transferring to the rest of the session.',
+    options: {
+      'Chest dominant':          'Ribs elevated on inhale. TVA not co-activating. No 360° expansion felt.',
+      'Mixed':                   'Alternating between chest and diaphragmatic. 360° only when actively cued.',
+      'Consistent 360°':         '360° expansion maintained with effort and cueing throughout sets.',
+      'Natural 360° automatic':  'Full diaphragmatic pattern without conscious effort. This is the adaptation goal.'
+    }
+  },
+  TVA_Engagement: {
+    what: 'How consistently the deep core (TVA) engaged during the session.',
+    why: 'TVA engagement is the foundation of all force transfer — skating push, golf rotation, and spinal protection. Progression from "breathing phases only" to "consistent throughout" is a key marker of core system restoration.',
+    options: {
+      'Not felt':                 'No sense of deep core activation at any point.',
+      'Breathing phases only':    'TVA activated during Phase 1 breathing exercises, lost during loaded exercises.',
+      'During exercises':         'Could feel TVA engaging during exercise sets when focusing on it.',
+      'Consistent throughout':    'TVA engagement present and maintainable across all phases without active cueing.'
+    }
+  },
+  Movement_Quality: {
+    what: 'Overall quality of movement patterns — how much compensation was present.',
+    why: 'Compensation patterns (knee valgus, rib flare, spinal sway) reduce training stimulus and reinforce dysfunction. This is a global session quality score for the kinetic chain.',
+    options: {
+      'Compensation dominant': 'Most movements driven by compensatory patterns. Common in early weeks or high-fatigue sessions.',
+      'Mixed':                 'Some sets were clean, others compensated. Typical mid-program state.',
+      'Mostly clean':          'Compensations occasional and correctable in session.',
+      'Clean throughout':      'Movement patterns maintained across all exercises. Energy available, skill established.'
+    }
+  },
+  Edge_Commitment: {
+    what: 'Willingness and ability to commit weight to the outside edge on pushes and cuts.',
+    why: 'Edge fear (staying centered, not committing to outside edge) is the primary on-ice confidence issue. Caused by right knee instability. Tracking this shows the strength-confidence connection closing.',
+    options: {
+      '1 Center-biased':    'Weight staying over the blade center. Not committing to edge. Protecting the knee.',
+      '2':                  'Slight edge lean — testing it but not trusting it.',
+      '3 Full outside edge': 'Full weight on outside edge achievable. Not yet habitual.',
+      '4':                  'Edge commitment reliable on both sides. Starting to feel automatic.',
+      '5 Deep aggressive':  'Deep edge angles available and controlled. Confidence fully restored.'
+    }
+  },
+  Push_Completion: {
+    what: 'How fully the skating push is completed — specifically hip extension at finish.',
+    why: 'Short glide = early weight transfer = fewer meters per stride = fatigue. The fix is completing the push (full hip extension) before shifting weight. This is the primary mechanical issue for this athlete.',
+    options: {
+      '1 Pulling early':          'Weight transferring before push finishes. Short, choppy stride.',
+      '2':                        'Partial hip extension. Better than pulling but not finishing.',
+      '3 Full extension':         'Hip extends to full range at push completion.',
+      '4':                        'Full extension achieved consistently and without conscious effort.',
+      '5 Extension + glide hold': 'Full extension + holding the glide before next stride. Maximum efficiency.'
+    }
+  },
+  Hip_Clearance: {
+    what: 'How fully and on-time the left hip clears in the golf downswing (left-handed framing).',
+    why: 'Hip clearance timing is the primary power and consistency driver for this athlete. Anterior pelvic tilt and right knee weakness limit trail leg load, which delays or blocks hip turn. Tracking this links rehab progress to swing performance.',
+    options: {
+      '1 Blocked':            'Left hip not clearing. Swing going around the body. Loss of distance and control.',
+      '2':                    'Partial clearance — starting late in downswing.',
+      '3 On time':            'Hip clearing on sequence with the downswing initiation.',
+      '4':                    'Full rotation, consistent. Hip out of the way of the arms.',
+      '5 Full rotation':      'Complete rotation, effortless. Trail side fully releases through impact.'
+    }
+  },
+  Pre_Shot_Breath: {
+    what: 'How consistently the 4-count TVA activation breath was used in the pre-shot routine.',
+    why: 'The pre-shot breath activates TVA and IAP before the swing (spinal stability), and shifts the nervous system toward parasympathetic (less scatter, more presence). Tracking adoption shows whether it becomes automatic over time.',
+    options: {
+      'Not used':     'No breath protocol before shots.',
+      'Sometimes':    'Used it on some shots, not others. Usually only after a bad shot.',
+      'Most shots':   'Used on 70%+ of shots. Starting to feel wrong to skip it.',
+      'Every shot':   'Full automatic pre-shot breath protocol. Integrated into routine.'
+    }
+  }
+  // All remaining fields follow the same pattern in APP_CONFIG
+}
+Info Button UI Component
+HTML pattern (rendered on each Log field row):
+html<div class="log-field-row" data-field="Entry_State">
+  <span class="log-field-label">How you arrived</span>
+  <div class="log-field-right">
+    <span class="log-field-value" id="log-val-Entry_State">—</span>
+    <button class="field-info-btn" data-field="Entry_State" aria-label="About this field">ⓘ</button>
+    <span class="log-field-arrow">›</span>
+  </div>
+</div>
+One shared tooltip element (appended to <body>, positioned dynamically):
+html<div id="field-tooltip" class="field-tooltip" role="tooltip" aria-live="polite" hidden>
+  <div class="tooltip-header">
+    <span class="tooltip-title"></span>
+    <button class="tooltip-close" aria-label="Close">✕</button>
+  </div>
+  <p class="tooltip-what"></p>
+  <p class="tooltip-why"></p>
+  <ul class="tooltip-options"></ul>
+</div>
+Behavior (handled in UI.FieldInfo):
+
+mouseenter on ⓘ button → position tooltip near button, populate from FIELD_DESCRIPTIONS, show with data-mode="hover"
+mouseleave on ⓘ button → if data-mode="hover" → hide tooltip
+click on ⓘ button → if hidden or hover mode → show with data-mode="locked"; if already locked → hide
+click on ✕ close button → hide tooltip regardless of mode
+Click anywhere outside tooltip while locked → hide tooltip
+On mobile (touch devices, window.matchMedia('(hover: none)')) → hover events ignored; click-only toggle
+
+Tooltip CSS (positioned absolute, above/below the button based on viewport space):
+css.field-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 320px;
+  background: var(--surface2);
+  border: 1px solid var(--border-lit);
+  border-radius: var(--r);
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.tooltip-what { color: var(--text); font-size: 15px; margin-bottom: 8px; }
+.tooltip-why  { color: var(--text-dim); font-size: 14px; font-style: italic; margin-bottom: 12px; }
+.tooltip-options { list-style: none; padding: 0; }
+.tooltip-options li { font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.tooltip-options li strong { color: var(--accent); }
+Airtable Schema Creation Integration
+When createSchema runs at setup, each field POST to the Metadata API includes a description property populated from FIELD_DESCRIPTIONS[fieldKey].what + ' | ' + FIELD_DESCRIPTIONS[fieldKey].why. This means field purpose is documented inside Airtable itself, visible when building reports.
+
+Navigation Structure
+Mobile (< 768px) — Bottom Nav
+[ Today ] [ Log ] [ Progress ] [ Learn ] [ Settings ]
+
+Today: workout execution (Tonight Mode + exercise phases)
+Log: post-session structured data entry via bottom sheets
+Progress: weekly metrics entry + session history
+Learn: Hockey / Golf / Body Movement / Breathwork knowledge
+Settings: Airtable credentials, theme toggle
+
+Desktop (≥ 768px) — Left Rail
+Persistent left rail with icons + labels. Main content area to the right. Learn content uses 2-column reading layout. Progress shows session table with sparklines.
+
+Session State Machine
+IDLE → (start session) → STARTING
+STARTING → (POST draft to Airtable) → ACTIVE
+ACTIVE → (exercise ticks, phase completion PATCHes) → ACTIVE
+ACTIVE → (all exercises done or manual complete) → LOGGING
+LOGGING → (user fills Log tab fields) → SAVING
+SAVING → (PATCH Complete to Airtable) → COMPLETE
+COMPLETE → (reset) → IDLE
+localStorage as buffer: Every state transition calls StorageService.setDraftSession() synchronously. Airtable calls are always async try/catch — silent failure, snackbar warning. App never crashes on Airtable errors.
+Phase auto-PATCH: Exercise membership per phase is a constant. When all exercises in a phase are ticked, Phases_Completed is PATCHed to Airtable in the background.
+javascriptconst PHASE_EXERCISES = {
+  'Phase 1 Breathing':   ['ex0', 'ex1'],
+  'Phase 2 Scapular':    ['ex2', 'ex3', 'ex4'],
+  'Phase 3 Lower Body':  ['ex5', 'ex6', 'ex7', 'ex8'],
+  'Phase 4 Power':       ['ex9', 'ex10', 'ex11']
+};
+Resume banner: On App.init(), check StorageService.getDraftSession() first (fast/sync), then AirtableService.getDraftSessions() (async, catches drafts from other devices).
+
+First-Launch Setup Flow
+5-step overlay:
+
+Welcome + purpose explanation
+PAT entry (password input, stored to localStorage.AT_PAT)
+Base ID entry (stored to localStorage.AT_BASE_ID)
+Connection test (GET /meta/bases/{baseId})
+Schema creation (POST to Metadata API — creates all 3 tables with all fields and select options)
+
+On subsequent launches: StorageService.isConfigured() → skip setup, go directly to Today tab.
+Settings tab has "Re-run setup" button and "Clear credentials" option.
+
+Desktop Sparklines
+Inline SVG sparklines — no library. UI.Progress.renderSparkline(data, containerId) takes an array of numeric values and renders a 60×20px SVG path. Used for:
+
+Knee pain trend (last 8 weeks)
+Session confidence trend (last 8 weeks)
+Quad delta trend (WEEKLY_METRICS)
+
+Session history table on desktop shows all SESSIONS fields in a scrollable table with sticky header.
+
+What to Keep vs. Rewrite
+Keep verbatim
+
+All CSS custom properties (lines 11–55)
+All exercise card CSS (.ex-card, .ex-tick, .ex-body, .cue-section, .feel-box, .knee-note)
+All exercise card HTML content (ex0–ex11, lines 989–1397)
+Milestone CSS and HTML content
+All inline content for Golf and On Ice sections (moved to Learn tab)
+
+Keep with modification
+
+Tonight Mode banner → repurposed as entry point on Today tab
+Session-done banner → wired to SessionMachine COMPLETE state
+Theme toggle → moved to Settings tab, keep CSS
+
+Rewrite from scratch
+
+Navigation (.tabs-wrap/.tab-btn/.panel) → bottom nav + left rail + content-area
+All JavaScript (11 functions) → full IIFE/module replacement
+Progress tab HTML + CSS → Airtable-backed Log + Progress tabs
+Header HTML → simplified, inside Today tab content area
+
+
+Implementation Phases
+PhaseWhatTest Gate0Branch feat/v3-airtable-rebuildBranch exists, old code intact1CSS: app shell, bottom nav, left rail, new UI primitivesMobile 375px + desktop 1024px visual structure correct, no card regressions2JS skeleton: all modules wired, no Airtable callsNav switches, exercise cards tick, Tonight Mode works, theme persists3Airtable integration: create/patch/fetch, Log tab, Resume bannerFull session flow writes to Airtable, resume works on reload4Setup screen + Metadata API schema creationFresh localStorage → setup → tables appear in Airtable → app loads5Weekly metrics + milestones persistenceLog metrics → reload → metrics persist; tap milestone → reload → still hit6Learn tab: all 4 sub-sections with full contentAll 4 sections render at mobile and desktop7Desktop dashboard: sparklines, session history tableAll tabs render at 1024px, no overflow8Polish: safe-area, offline degradation, WCAG, debounce, 44px touch targetsAll items from CLAUDE.md test gate pass
+
+PR Gate Checklist (from CLAUDE.md)
+Before any PR to main:
+
+HTML validates — no unclosed tags, valid structure
+All JS functions defined before called
+Mobile viewport correct (meta tag, touch targets ≥ 44px)
+Dark + light mode both functional
+All exercise cards expand/collapse
+Progress tracking persists (localStorage + Airtable verify)
+CSV export produces valid output
+
+
+Notes / Constraints
+
+No frameworks. Vanilla HTML/CSS/JS only.
+The Today tab and Tonight Mode are protected UX — must remain reachable in one tap.
+Log tab uses bottom sheets only — no keyboard input during a sweaty session.
+All Airtable errors are silent-with-snackbar — app never crashes offline.
+Sport-specific fields (Hockey / Golf) only render in Log when the matching Session_Type is selected.
+The left-handed fade in golf is stable. No drills in Learn content should suggest removing it.
