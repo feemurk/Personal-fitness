@@ -2094,7 +2094,7 @@ const AirtableService = {
   _baseUrl: () => APP_CONFIG.AT_API + '/' + StorageService.getBaseId(),
 
   testConnection: async function() {
-    await this._fetch(APP_CONFIG.AT_META + '/' + StorageService.getBaseId());
+    await this._fetch(APP_CONFIG.AT_META + '/' + StorageService.getBaseId() + '/tables');
     return true;
   },
 
