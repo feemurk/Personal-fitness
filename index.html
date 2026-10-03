@@ -814,6 +814,101 @@ body {
   line-height: 1.8;
 }
 
+/* ── LIGHT MODE ── */
+body.light {
+  --bg: #f5f0ea;
+  --surface: #ede8df;
+  --surface2: #e4ddd3;
+  --border: rgba(50,35,20,0.1);
+  --border-lit: rgba(50,35,20,0.2);
+  --text: #1c2530;
+  --text-dim: #4a5a6b;
+  --text-dimmer: #8a9aab;
+  --accent: #1e7a9a;
+  --accent-dim: rgba(30,122,154,0.08);
+  --accent-border: rgba(30,122,154,0.22);
+  --green: #1e7a54;
+  --green-dim: rgba(30,122,84,0.07);
+  --green-border: rgba(30,122,84,0.18);
+  --amber: #8a5a1a;
+  --amber-dim: rgba(138,90,26,0.07);
+  --amber-border: rgba(138,90,26,0.22);
+  --warm: #6a4a22;
+}
+body.light .tonight-banner {
+  background: linear-gradient(135deg, rgba(30,122,154,0.05) 0%, rgba(30,122,154,0.02) 100%);
+}
+body.light .tonight-banner:hover {
+  background: rgba(30,122,154,0.07);
+}
+body.light .conf-row {
+  background: var(--surface);
+}
+
+/* ── THEME TOGGLE ── */
+.theme-toggle {
+  position: fixed;
+  z-index: 200;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  right: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-lit);
+  border-radius: 20px;
+  padding: 7px 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  transition: all 0.18s;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.15);
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.theme-toggle-icon { font-size: 12px; line-height: 1; }
+
+/* ── DESKTOP ── */
+@media (min-width: 768px) {
+  .header { max-width: 800px; padding: 56px 36px 40px; }
+  .header h1 { font-size: 46px; }
+  .header-sub { font-size: 16px; max-width: 500px; }
+  .header-meta { gap: 36px; margin-top: 28px; }
+  .header-stat .val, .header-stat span:first-child { font-size: 18px; }
+  .tabs { max-width: 800px; }
+  .tab-btn { padding: 15px 22px; font-size: 11px; letter-spacing: 0.15em; }
+  .panel { max-width: 800px; padding: 30px 30px 80px; }
+  .phase-title { font-size: 26px; }
+  .phase-num { font-size: 11px; }
+  .ex-name { font-size: 16px; }
+  .ex-sets { font-size: 11px; }
+  .cue-text { font-size: 15.5px; }
+  .feel-box { font-size: 15px; }
+  .golf-section p { font-size: 15.5px; }
+  .ice-drill p { font-size: 15.5px; }
+  .section-note { font-size: 15px; }
+  .prog-intro { font-size: 15.5px; }
+  .ms-body strong { font-size: 15.5px; }
+  .ms-body span { font-size: 13.5px; }
+  .gear-item { padding: 18px; }
+  .gear-body strong { font-size: 15.5px; }
+  .gear-body p { font-size: 14.5px; }
+  .theme-toggle {
+    bottom: auto;
+    top: 9px;
+    right: 22px;
+    font-size: 10px;
+    padding: 8px 15px;
+    box-shadow: none;
+  }
+  /* Wider tonight panel layout */
+  .tonight-panel { padding: 22px 28px 26px; }
+  .mini-list li { padding: 13px 18px; font-size: 12.5px; }
+}
+
 @media (max-width: 360px) {
   .header h1 { font-size: 26px; }
   .tab-btn { padding: 12px 12px; font-size: 9px; }
@@ -863,6 +958,12 @@ body {
     <button class="tab-btn" onclick="showTab('gear', this)">Gear</button>
   </div>
 </div>
+
+<!-- THEME TOGGLE -->
+<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle colour theme">
+  <span class="theme-toggle-icon" id="theme-icon">◑</span>
+  <span id="theme-label">Dark</span>
+</button>
 
 <!-- ══════════════════════════════════ PROGRAM -->
 <div id="tab-program" class="panel active">
@@ -1855,6 +1956,37 @@ function exportCSV() {
   a.download = 'movement-progress.csv';
   a.click();
 }
+
+// ── Theme ──
+const THEME_KEY = 'rtp-theme';
+function applyTheme(theme) {
+  const isLight = theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  document.getElementById('theme-icon').textContent = isLight ? '◑' : '☀';
+  document.getElementById('theme-label').textContent = isLight ? 'Dark' : 'Light';
+  localStorage.setItem(THEME_KEY, theme);
+}
+function toggleTheme() {
+  applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+}
+
+// ── Device detection ──
+function initDevice() {
+  const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+  document.body.classList.toggle('is-desktop', isDesktop);
+  document.body.classList.toggle('is-mobile', !isDesktop);
+}
+
+// ── Init ──
+(function init() {
+  const saved = localStorage.getItem(THEME_KEY);
+  applyTheme(saved || 'light');
+  initDevice();
+  window.matchMedia('(min-width: 768px)').addEventListener('change', e => {
+    document.body.classList.toggle('is-desktop', e.matches);
+    document.body.classList.toggle('is-mobile', !e.matches);
+  });
+})();
 
 // ── Milestones ──
 function tapMs(id) {
